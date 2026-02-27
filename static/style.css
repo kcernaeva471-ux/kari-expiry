@@ -1,0 +1,67 @@
+/* Карточки-счётчики */
+.summary-card {
+    border-radius: 12px;
+    text-align: center;
+    padding: 0.6rem 0.3rem;
+}
+.summary-card .count {
+    font-size: 1.8rem;
+    font-weight: 700;
+    line-height: 1;
+}
+.summary-card small {
+    font-size: 0.7rem;
+    color: #555;
+}
+
+/* Карточки товаров */
+.product-card {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.product-header:active {
+    opacity: 0.8;
+}
+.product-details {
+    border-color: #dee2e6 !important;
+}
+.add-batch-form {
+    border: 1px dashed #ccc;
+}
+
+/* Мобильная оптимизация */
+@media (max-width: 576px) {
+    .table td, .table th {
+        font-size: 0.8rem;
+        padding: 0.3rem 0.4rem;
+    }
+    .summary-card .count {
+        font-size: 1.4rem;
+    }
+    .summary-card small {
+        font-size: 0.65rem;
+    }
+    h5 { font-size: 1rem; }
+    .product-header {
+        padding: 0.4rem !important;
+    }
+    .add-batch-form .row {
+        flex-direction: column;
+    }
+    .add-batch-form .col-5,
+    .add-batch-form .col-3,
+    .add-batch-form .col-4 {
+        width: 100%;
+        margin-bottom: 4px;
+    }
+}
+
+/* Строки таблицы */
+.table tbody tr {
+    transition: background-color 0.15s;
+}
+
+/* Navbar compact */
+.navbar { padding: 0.3rem 0.5rem; }
+.navbar-brand { font-weight: 700; font-size: 1.1rem; }

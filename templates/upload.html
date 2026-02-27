@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Импорт данных — Kari{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-3">
+    <div class="col-11 col-sm-8 col-md-6 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h5 class="mb-3">Импорт остатков</h5>
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Файл остатков (.xlsx) <span class="text-danger">*</span></label>
+                        <input type="file" name="stock_file" class="form-control"
+                               accept=".xlsx,.xls" required>
+                        <div class="form-text">Файл с колонками: Код номенклатуры, Наименование, Склад, Физ. доступно</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Каталог товаров (.xlsx)</label>
+                        <input type="file" name="catalog_file" class="form-control"
+                               accept=".xlsx,.xls">
+                        <div class="form-text">Необязательно. Добавляет бренд и группу к товарам.</div>
+                    </div>
+                    <div class="alert alert-warning small">
+                        <b>Внимание:</b> импорт заменит все текущие товары и партии!
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        Импортировать
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

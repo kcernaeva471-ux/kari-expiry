@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Сводка — Kari{% endblock %}
+{% block content %}
+<h5 class="mb-3">Сводка по магазинам</h5>
+
+<div class="table-responsive">
+    <table class="table table-sm table-hover align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>Магазин</th>
+                <th class="text-center">Всего</th>
+                <th class="text-center">
+                    <span class="d-none d-md-inline">Не заполнен</span>
+                    <span class="d-md-none">Пуст.</span>
+                </th>
+                <th class="text-center">
+                    <span class="d-none d-md-inline">Просрочен</span>
+                    <span class="d-md-none">Пр.</span>
+                </th>
+                <th class="text-center">70%</th>
+                <th class="text-center">50%</th>
+                <th class="text-center d-none d-sm-table-cell">Норма</th>
+                <th class="text-center d-none d-md-table-cell">Без срока</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in stores %}
+            <tr class="{{ 'table-danger' if s.get('ПРОСРОЧЕН', 0) > 0 else '' }}">
+                <td>
+                    <a href="/store/{{ s.store_number }}" class="fw-bold text-decoration-none">
+                        {{ s.store_number }}
+                    </a>
+                </td>
+                <td class="text-center">{{ s.total }}</td>
+                <td class="text-center">
+                    {% if s.not_filled > 0 %}
+                        <span class="badge bg-secondary">{{ s.not_filled }}</span>
+                    {% else %}
+                        <span class="text-success">0</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if s.get('ПРОСРОЧЕН', 0) > 0 %}
+                        <span class="badge bg-danger">{{ s['ПРОСРОЧЕН'] }}</span>
+                    {% else %}
+                        <span class="text-muted">0</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if s.get('Скидка 70%', 0) > 0 %}
+                        <span class="badge bg-warning text-dark">{{ s['Скидка 70%'] }}</span>
+                    {% else %}
+                        <span class="text-muted">0</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if s.get('Скидка 50%', 0) > 0 %}
+                        <span class="badge bg-warning text-dark">{{ s['Скидка 50%'] }}</span>
+                    {% else %}
+                        <span class="text-muted">0</span>
+                    {% endif %}
+                </td>
+                <td class="text-center d-none d-sm-table-cell">
+                    <span class="text-success">{{ s.get('В норме', 0) }}</span>
+                </td>
+                <td class="text-center d-none d-md-table-cell text-muted">{{ s.no_expiry }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if show_codes %}
+<hr>
+<h5>Коды доступа магазинов</h5>
+<div class="table-responsive">
+    <table class="table table-sm">
+        <thead><tr><th>Магазин</th><th>Код</th></tr></thead>
+        <tbody>
+            {% for c in codes %}
+            <tr><td>{{ c.store_number }}</td><td><code>{{ c.access_code }}</code></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}
