@@ -130,7 +130,13 @@ def create_app() -> Flask:
             if product["store_number"] != session.get("store_number"):
                 return jsonify({"error": "Нет доступа"}), 403
 
-        batch_id = database.add_batch(product_id, production_date, shelf_life_months)
+        quantity = 0
+        try:
+            quantity = int(data.get("quantity", 0))
+        except (ValueError, TypeError):
+            quantity = 0
+
+        batch_id = database.add_batch(product_id, production_date, shelf_life_months, quantity)
         return jsonify({"ok": True, "batch_id": batch_id})
 
     @app.route("/api/batch/delete", methods=["POST"])

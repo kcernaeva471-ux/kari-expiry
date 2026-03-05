@@ -43,6 +43,13 @@
     </div>
 </div>
 
+<!-- Поиск по артикулу / названию -->
+<div class="mb-2">
+    <input type="text" class="form-control form-control-sm" id="search-input"
+           placeholder="Поиск по артикулу или названию..."
+           oninput="filterProducts()" value="{{ search_query or '' }}">
+</div>
+
 <!-- Фильтры -->
 <div class="d-flex flex-wrap gap-1 mb-3">
     <a href="/store/{{ store_number }}"
@@ -116,6 +123,7 @@
                     <div class="d-flex align-items-center gap-2 py-1 border-bottom"
                          style="background: {{ styles.get(b.status, {}).get('bg', '#fff') }}; padding: 4px 6px; border-radius: 4px; margin-top: 2px;">
                         <span class="small flex-grow-1">
+                            {% if b.quantity > 0 %}<b>{{ b.quantity }} шт</b> &middot; {% endif %}
                             Произв: <b>{{ b.prod_formatted }}</b>
                             &rarr; До: <b>{{ b.expiry_formatted }}</b>
                             ({{ b.days_left }} дн.)
@@ -134,10 +142,10 @@
 
                 <!-- Форма добавления партии -->
                 <div class="add-batch-form mt-2 p-2 bg-light rounded">
-                    <small class="text-muted fw-bold d-block mb-1">Добавить дату:</small>
+                    <small class="text-muted fw-bold d-block mb-1">Добавить партию:</small>
                     <div class="row g-1 align-items-end">
-                        <div class="col-5">
-                            <label class="form-label mb-0" style="font-size: 0.7rem;">Дата производства</label>
+                        <div class="col-4">
+                            <label class="form-label mb-0" style="font-size: 0.7rem;">Дата произв.</label>
                             <input type="date" class="form-control form-control-sm"
                                    id="prod-date-{{ p.id }}" required>
                         </div>
@@ -147,8 +155,14 @@
                                    id="shelf-months-{{ p.id }}" min="1" max="120"
                                    placeholder="мес." required>
                         </div>
-                        <div class="col-4 d-flex gap-1">
-                            <button class="btn btn-sm btn-primary flex-grow-1"
+                        <div class="col-2">
+                            <label class="form-label mb-0" style="font-size: 0.7rem;">Кол-во</label>
+                            <input type="number" class="form-control form-control-sm"
+                                   id="batch-qty-{{ p.id }}" min="1" max="9999"
+                                   placeholder="шт." value="{{ p.available }}">
+                        </div>
+                        <div class="col-3">
+                            <button class="btn btn-sm btn-primary w-100"
                                     onclick="addBatch({{ p.id }})">
                                 Добавить
                             </button>
@@ -187,12 +201,23 @@ function toggleProduct(id) {
     }
 }
 
+function filterProducts() {
+    var query = document.getElementById('search-input').value.toLowerCase().trim();
+    var cards = document.querySelectorAll('.product-card');
+    cards.forEach(function(card) {
+        var text = card.textContent.toLowerCase();
+        card.style.display = (!query || text.indexOf(query) !== -1) ? '' : 'none';
+    });
+}
+
 function addBatch(productId) {
     var dateEl = document.getElementById('prod-date-' + productId);
     var monthsEl = document.getElementById('shelf-months-' + productId);
+    var qtyEl = document.getElementById('batch-qty-' + productId);
 
     var prodDate = dateEl.value;
     var months = monthsEl.value;
+    var qty = qtyEl ? parseInt(qtyEl.value) || 0 : 0;
 
     if (!prodDate) {
         alert('Укажите дату производства');
@@ -209,7 +234,8 @@ function addBatch(productId) {
         body: JSON.stringify({
             product_id: productId,
             production_date: prodDate,
-            shelf_life_months: parseInt(months)
+            shelf_life_months: parseInt(months),
+            quantity: qty
         })
     })
     .then(function(r) { return r.json(); })
