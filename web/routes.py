@@ -49,6 +49,22 @@ def create_app() -> Flask:
     )
     app.secret_key = config.FLASK_SECRET_KEY
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB
+
+    # ── Временный endpoint для загрузки БД (удалить после миграции) ──
+    @app.route("/admin/upload-db", methods=["POST"])
+    def upload_db():
+        secret = request.args.get("key", "")
+        if secret != "migrate2026":
+            return "Forbidden", 403
+        f = request.files.get("db")
+        if not f:
+            return "No file", 400
+        import shutil
+        db_path = config.DATABASE_PATH
+        f.save(db_path)
+        database.init_db()
+        database.setup_store_access()
+        return f"OK, saved to {db_path}", 200
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
