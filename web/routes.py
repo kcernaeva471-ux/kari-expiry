@@ -59,8 +59,11 @@ def create_app() -> Flask:
         f = request.files.get("db")
         if not f:
             return "No file", 400
-        import shutil
         db_path = config.DATABASE_PATH
+        # Закрываем старое соединение
+        if hasattr(database._local, "db") and database._local.db:
+            database._local.db.close()
+            database._local.db = None
         f.save(db_path)
         database.init_db()
         database.setup_store_access()
