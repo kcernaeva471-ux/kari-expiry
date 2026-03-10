@@ -158,7 +158,14 @@ def read_stock(file_path: str) -> list:
 
         # Убираем нечисловые символы из номера магазина
         store_digits = "".join(c for c in store if c.isdigit())
-        if not store_digits or store_digits not in config.VALID_STORES:
+        if not store_digits:
+            continue
+        # Проверяем по БД (основной) или по конфигу (fallback)
+        try:
+            valid = database.get_valid_stores()
+        except Exception:
+            valid = config.VALID_STORES
+        if store_digits not in valid:
             continue
 
         # Остатки

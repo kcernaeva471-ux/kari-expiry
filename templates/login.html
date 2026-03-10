@@ -1,34 +1,51 @@
 {% extends "base.html" %}
 {% block title %}Вход — Kari{% endblock %}
-{% block content %}
-<div class="row justify-content-center mt-5">
-    <div class="col-11 col-sm-8 col-md-5 col-lg-4">
-        <div class="card shadow">
-            <div class="card-body p-4">
-                <div class="text-center mb-3">
-                    <img src="{{ url_for('static', filename='logo.svg') }}" alt="Kari" height="48">
-                </div>
-                <h6 class="text-center text-muted mb-4">Сроки годности</h6>
-                <form method="POST">
-                    <div class="mb-3">
-                        <label class="form-label">Магазин</label>
-                        <select name="store_number" class="form-select" required>
-                            <option value="">Выберите магазин...</option>
-                            {% for s in stores %}
+{% block fullpage %}
+<div class="login-page">
+    <div class="login-card">
+        <div class="logo-circle">
+            <img src="{{ url_for('static', filename='logo.svg') }}" alt="Kari" height="40">
+        </div>
+        <h5 class="text-center fw-bold mb-1">Реализация</h5>
+        <p class="text-center text-muted small mb-4">Учёт сроков годности</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} py-2 small">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <form method="POST">
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-muted">Магазин</label>
+                <select name="store_number" class="form-select" required>
+                    <option value="">Выберите магазин...</option>
+                    {% if stores_grouped %}
+                        {% for group in stores_grouped %}
+                        <optgroup label="{{ group.name }}">
+                            {% for s in group.stores %}
                             <option value="{{ s }}">{{ s }}</option>
                             {% endfor %}
-                            <option value="admin">Администратор</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Код доступа</label>
-                        <input type="text" name="access_code" class="form-control"
-                               placeholder="4 цифры" inputmode="numeric" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Войти</button>
-                </form>
+                        </optgroup>
+                        {% endfor %}
+                    {% endif %}
+                    <option value="admin">Администратор</option>
+                </select>
             </div>
-        </div>
+            <div class="mb-4">
+                <label class="form-label small fw-bold text-muted">Код доступа</label>
+                <input type="text" name="access_code" class="form-control"
+                       placeholder="Код доступа" inputmode="numeric" required
+                       autocomplete="off">
+            </div>
+            <button type="submit" class="btn btn-kari w-100">Войти</button>
+        </form>
+
+        <p class="text-center text-muted mt-3" style="font-size: 0.7rem;">
+            kari-realizaciya.ru
+        </p>
     </div>
 </div>
 {% endblock %}

@@ -2,9 +2,9 @@
 {% block title %}Магазин {{ store_number }} — Kari{% endblock %}
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-2">
-    <h5 class="mb-0">Магазин {{ store_number }}</h5>
-    <small class="text-muted">Товаров: {{ stats.total }}</small>
+<div class="page-header">
+    <h5>Магазин {{ store_number }}</h5>
+    <span class="text-muted small">Товаров: {{ stats.total }}</span>
 </div>
 
 <!-- Счётчики -->
@@ -19,8 +19,8 @@
     </div>
     <div class="col-3 col-sm-2">
         <a href="/store/{{ store_number }}?filter=Скидка 70%25" class="text-decoration-none">
-            <div class="summary-card" style="background: #ffe0b2;">
-                <div class="count" style="color: #e65100;">{{ stats.get('Скидка 70%', 0) }}</div>
+            <div class="summary-card" style="background: #fbe9d7;">
+                <div class="count" style="color: #6D4C30;">{{ stats.get('Скидка 70%', 0) }}</div>
                 <small>70%</small>
             </div>
         </a>
@@ -45,7 +45,7 @@
 
 <!-- Поиск по артикулу / названию -->
 <div class="mb-2">
-    <input type="text" class="form-control form-control-sm" id="search-input"
+    <input type="text" class="form-control search-input" id="search-input"
            placeholder="Поиск по артикулу или названию..."
            oninput="filterProducts()" value="{{ search_query or '' }}">
 </div>
@@ -53,15 +53,15 @@
 <!-- Фильтры -->
 <div class="d-flex flex-wrap gap-1 mb-3">
     <a href="/store/{{ store_number }}"
-       class="btn btn-sm {{ 'btn-dark' if not current_filter else 'btn-outline-dark' }}">
+       class="filter-chip {{ 'bg-dark text-white border-dark' if not current_filter else 'text-dark border-secondary' }}">
         Все
     </a>
     <a href="/store/{{ store_number }}?filter=Не заполнен"
-       class="btn btn-sm {{ 'btn-secondary' if current_filter == 'Не заполнен' else 'btn-outline-secondary' }}">
+       class="filter-chip {{ 'bg-secondary text-white border-secondary' if current_filter == 'Не заполнен' else 'text-secondary border-secondary' }}">
         Не заполнен ({{ stats.not_filled }})
     </a>
     <a href="/store/{{ store_number }}?filter=urgent"
-       class="btn btn-sm {{ 'btn-danger' if current_filter == 'urgent' else 'btn-outline-danger' }}">
+       class="filter-chip {{ 'bg-danger text-white border-danger' if current_filter == 'urgent' else 'text-danger border-danger' }}">
         Срочные
     </a>
 </div>
@@ -75,6 +75,9 @@
         <div class="product-header p-2 rounded-top d-flex justify-content-between align-items-start"
              style="background: {{ styles.get(p.status, {}).get('bg', '#f0f0f0') }}; cursor: pointer;"
              onclick="toggleProduct({{ p.id }})">
+            <img src="https://cdn.api.kari.com/f/{{ p.article }}_001-preview.jpg"
+                 alt="" class="product-thumb"
+                 onerror="this.style.display='none'">
             <div class="flex-grow-1">
                 <div class="fw-bold small">{{ p.name or 'Без названия' }}</div>
                 <div class="text-muted" style="font-size: 0.75rem;">
@@ -87,7 +90,7 @@
                 {% if p.status == 'ПРОСРОЧЕН' %}
                     <span class="badge bg-danger">ПРОСРОЧЕН</span>
                 {% elif p.status == 'Скидка 70%' %}
-                    <span class="badge bg-warning text-dark">70%</span>
+                    <span class="badge bg-brown">70%</span>
                 {% elif p.status == 'Скидка 50%' %}
                     <span class="badge" style="background: #fff176; color: #333;">50%</span>
                 {% elif p.status == 'В норме' %}
@@ -210,10 +213,62 @@ function filterProducts() {
     });
 }
 
+/* Обёртка для fetch с таймаутом и обработкой ошибок */
+function apiFetch(url, body, btn) {
+    var origText = '';
+    if (btn) {
+        origText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Загрузка...';
+    }
+
+    var controller = new AbortController();
+    var timeoutId = setTimeout(function() { controller.abort(); }, 30000);
+
+    return fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body),
+        signal: controller.signal,
+        credentials: 'same-origin'
+    })
+    .then(function(r) {
+        clearTimeout(timeoutId);
+        if (!r.ok) {
+            if (r.status === 401 || r.status === 302) {
+                alert('Сессия истекла. Войдите заново.');
+                location.href = '/login';
+                return;
+            }
+            throw new Error('Сервер вернул ошибку ' + r.status);
+        }
+        return r.json();
+    })
+    .then(function(data) {
+        if (!data) return;
+        if (data.error) {
+            alert(data.error);
+            if (btn) { btn.disabled = false; btn.textContent = origText; }
+        } else {
+            location.reload();
+        }
+    })
+    .catch(function(e) {
+        clearTimeout(timeoutId);
+        if (btn) { btn.disabled = false; btn.textContent = origText; }
+        if (e.name === 'AbortError') {
+            alert('Сервер не ответил за 30 секунд. Проверьте интернет и попробуйте ещё раз.');
+        } else {
+            alert('Ошибка соединения. Проверьте интернет и попробуйте ещё раз.');
+        }
+    });
+}
+
 function addBatch(productId) {
     var dateEl = document.getElementById('prod-date-' + productId);
     var monthsEl = document.getElementById('shelf-months-' + productId);
     var qtyEl = document.getElementById('batch-qty-' + productId);
+    var btn = event ? event.target : null;
 
     var prodDate = dateEl.value;
     var months = monthsEl.value;
@@ -228,64 +283,25 @@ function addBatch(productId) {
         return;
     }
 
-    fetch('/api/batch/add', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            product_id: productId,
-            production_date: prodDate,
-            shelf_life_months: parseInt(months),
-            quantity: qty
-        })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-        if (data.error) {
-            alert(data.error);
-        } else {
-            location.reload();
-        }
-    })
-    .catch(function(e) {
-        alert('Ошибка: ' + e);
-    });
+    apiFetch('/api/batch/add', {
+        product_id: productId,
+        production_date: prodDate,
+        shelf_life_months: parseInt(months),
+        quantity: qty
+    }, btn);
 }
 
 function deleteBatch(batchId, productId) {
     if (!confirm('Удалить эту партию?')) return;
-
-    fetch('/api/batch/delete', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ batch_id: batchId })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-        if (data.error) {
-            alert(data.error);
-        } else {
-            location.reload();
-        }
-    });
+    var btn = event ? event.target : null;
+    apiFetch('/api/batch/delete', { batch_id: batchId }, btn);
 }
 
 function setNoExpiry(productId, value) {
     var msg = value ? 'Отметить товар как «Без срока годности»?' : 'Вернуть товару срок годности?';
     if (!confirm(msg)) return;
-
-    fetch('/api/product/no-expiry', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ product_id: productId, value: value })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-        if (data.error) {
-            alert(data.error);
-        } else {
-            location.reload();
-        }
-    });
+    var btn = event ? event.target : null;
+    apiFetch('/api/product/no-expiry', { product_id: productId, value: value }, btn);
 }
 </script>
 

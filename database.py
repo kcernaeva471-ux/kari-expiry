@@ -22,12 +22,22 @@ def get_db() -> sqlite3.Connection:
         _local.db.row_factory = sqlite3.Row
         _local.db.execute("PRAGMA journal_mode=WAL")
         _local.db.execute("PRAGMA foreign_keys=ON")
+        _local.db.execute("PRAGMA cache_size=-8000")      # 8 MB кэш
+        _local.db.execute("PRAGMA mmap_size=67108864")     # 64 MB mmap
+        _local.db.execute("PRAGMA synchronous=NORMAL")     # быстрее записи
+        _local.db.execute("PRAGMA temp_store=MEMORY")      # temp в памяти
     return _local.db
 
 
 def init_db():
     db = get_db()
     db.executescript("""
+        -- Центры (группы магазинов)
+        CREATE TABLE IF NOT EXISTS centers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE
+        );
+
         -- Товары магазинов (из остатков)
         CREATE TABLE IF NOT EXISTS store_products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -56,28 +66,68 @@ def init_db():
         CREATE TABLE IF NOT EXISTS store_access (
             store_number TEXT PRIMARY KEY,
             access_code TEXT NOT NULL,
-            role TEXT DEFAULT 'director'
+            role TEXT DEFAULT 'director',
+            center_id INTEGER REFERENCES centers(id)
+        );
+
+        -- Журнал активности
+        CREATE TABLE IF NOT EXISTS activity_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            store_number TEXT NOT NULL,
+            action TEXT NOT NULL,
+            details TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Кэш цен с kari.com
+        CREATE TABLE IF NOT EXISTS product_prices (
+            article TEXT PRIMARY KEY,
+            price INTEGER DEFAULT 0,
+            fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE INDEX IF NOT EXISTS idx_sp_store ON store_products(store_number);
         CREATE INDEX IF NOT EXISTS idx_sp_article ON store_products(article);
         CREATE INDEX IF NOT EXISTS idx_batches_product ON batches(product_id);
+        CREATE INDEX IF NOT EXISTS idx_batches_expiry ON batches(expiry_date);
+        CREATE INDEX IF NOT EXISTS idx_activity_store ON activity_log(store_number);
+        CREATE INDEX IF NOT EXISTS idx_activity_time ON activity_log(created_at);
+        CREATE INDEX IF NOT EXISTS idx_prices_article ON product_prices(article);
     """)
+
+    # Миграции для существующих БД
+    cols = [r[1] for r in db.execute("PRAGMA table_info(store_access)").fetchall()]
+    if "center_id" not in cols:
+        db.execute("ALTER TABLE store_access ADD COLUMN center_id INTEGER REFERENCES centers(id)")
+    if "address" not in cols:
+        db.execute("ALTER TABLE store_access ADD COLUMN address TEXT DEFAULT ''")
+
     db.commit()
 
 
 def setup_store_access():
+    """Инициализирует магазины и центр по умолчанию."""
     db = get_db()
+
+    # Создаём центр по умолчанию, если ещё нет ни одного
+    center_count = db.execute("SELECT COUNT(*) FROM centers").fetchone()[0]
+    if center_count == 0:
+        db.execute("INSERT INTO centers (name) VALUES (?)", (config.DEFAULT_CENTER,))
+
+    default_center_id = db.execute(
+        "SELECT id FROM centers ORDER BY id LIMIT 1"
+    ).fetchone()[0]
+
+    # Добавляем магазины из VALID_STORES (обратная совместимость)
     for store in config.VALID_STORES:
-        existing = db.execute(
-            "SELECT 1 FROM store_access WHERE store_number = ?", (store,)
-        ).fetchone()
-        if not existing:
-            code = "".join(random.choices(string.digits, k=4))
-            db.execute(
-                "INSERT INTO store_access (store_number, access_code, role) VALUES (?, ?, 'director')",
-                (store, code),
-            )
+        db.execute(
+            """INSERT INTO store_access (store_number, access_code, role, center_id)
+               VALUES (?, ?, 'director', ?)
+               ON CONFLICT(store_number) DO UPDATE SET
+                   access_code = CASE WHEN access_code = store_number THEN ? ELSE access_code END,
+                   center_id = COALESCE(center_id, ?)""",
+            (store, store, default_center_id, store, default_center_id),
+        )
     db.commit()
 
 
@@ -268,13 +318,39 @@ def get_store_products(store_number: str, filter_status: str = None) -> list[dic
     return products
 
 
+def get_valid_stores() -> list[str]:
+    """Список всех магазинов из БД (замена config.VALID_STORES)."""
+    db = get_db()
+    rows = db.execute("SELECT store_number FROM store_access ORDER BY store_number").fetchall()
+    if rows:
+        return [r["store_number"] for r in rows]
+    # Fallback на конфиг если БД пуста
+    return list(config.VALID_STORES)
+
+
 def get_all_stores_summary() -> list[dict]:
-    """Сводка по всем магазинам."""
+    """Сводка по всем магазинам с информацией о центрах."""
     db = get_db()
     today = date.today()
     result = []
 
-    for store in config.VALID_STORES:
+    # Берём магазины из БД с привязкой к центрам
+    stores_rows = db.execute("""
+        SELECT sa.store_number, sa.center_id, COALESCE(c.name, '') as center_name
+        FROM store_access sa
+        LEFT JOIN centers c ON c.id = sa.center_id
+        ORDER BY sa.center_id, sa.store_number
+    """).fetchall()
+
+    if not stores_rows:
+        # Fallback на конфиг
+        stores_rows = [{"store_number": s, "center_id": None, "center_name": ""} for s in config.VALID_STORES]
+
+    for srow in stores_rows:
+        store = srow["store_number"] if isinstance(srow, dict) else srow[0]
+        center_id = srow["center_id"] if isinstance(srow, dict) else srow[1]
+        center_name = srow["center_name"] if isinstance(srow, dict) else srow[2]
+
         total = db.execute(
             "SELECT COUNT(*) as c FROM store_products WHERE store_number = ?",
             (store,),
@@ -314,6 +390,8 @@ def get_all_stores_summary() -> list[dict]:
 
         result.append({
             "store_number": store,
+            "center_id": center_id,
+            "center_name": center_name,
             "total": total,
             "not_filled": not_filled,
             "no_expiry": no_expiry,
@@ -388,3 +466,351 @@ def check_access(store_number: str, code: str):
 def get_access_codes() -> list[dict]:
     db = get_db()
     return [dict(r) for r in db.execute("SELECT * FROM store_access ORDER BY store_number").fetchall()]
+
+
+# ── Журнал активности ─────────────────────────────────────────────────────
+
+def log_activity(store_number: str, action: str, details: str = ""):
+    """Записывает действие в журнал."""
+    db = get_db()
+    db.execute(
+        "INSERT INTO activity_log (store_number, action, details) VALUES (?, ?, ?)",
+        (store_number, action, details),
+    )
+    db.commit()
+
+
+def get_activity_log(limit: int = 200, store_filter: str = None) -> list[dict]:
+    """Возвращает последние записи журнала."""
+    db = get_db()
+    if store_filter:
+        rows = db.execute(
+            """SELECT * FROM activity_log
+               WHERE store_number = ?
+               ORDER BY created_at DESC LIMIT ?""",
+            (store_filter, limit),
+        ).fetchall()
+    else:
+        rows = db.execute(
+            "SELECT * FROM activity_log ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_activity_summary() -> list[dict]:
+    """Сводка активности по магазинам: последний вход, кол-во действий."""
+    db = get_db()
+    rows = db.execute("""
+        SELECT store_number,
+               COUNT(*) as total_actions,
+               SUM(CASE WHEN action = 'login' THEN 1 ELSE 0 END) as logins,
+               SUM(CASE WHEN action = 'add_batch' THEN 1 ELSE 0 END) as batches_added,
+               SUM(CASE WHEN action = 'no_expiry' THEN 1 ELSE 0 END) as no_expiry_set,
+               MAX(created_at) as last_activity
+        FROM activity_log
+        WHERE store_number != 'admin'
+        GROUP BY store_number
+        ORDER BY last_activity DESC
+    """).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ── Центры ────────────────────────────────────────────────────────────────
+
+def get_centers() -> list[dict]:
+    """Список центров с количеством магазинов."""
+    db = get_db()
+    rows = db.execute("""
+        SELECT c.id, c.name,
+               COUNT(sa.store_number) as store_count
+        FROM centers c
+        LEFT JOIN store_access sa ON sa.center_id = c.id
+        GROUP BY c.id
+        ORDER BY c.name
+    """).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_center_stores(center_id: int) -> list[dict]:
+    """Магазины одного центра."""
+    db = get_db()
+    rows = db.execute(
+        "SELECT * FROM store_access WHERE center_id = ? ORDER BY store_number",
+        (center_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_stores_grouped_by_center() -> list[dict]:
+    """Магазины сгруппированные по центрам (для логина)."""
+    db = get_db()
+    centers = db.execute("SELECT id, name FROM centers ORDER BY name").fetchall()
+    result = []
+    for c in centers:
+        stores = db.execute(
+            "SELECT store_number FROM store_access WHERE center_id = ? ORDER BY store_number",
+            (c["id"],),
+        ).fetchall()
+        result.append({
+            "id": c["id"],
+            "name": c["name"],
+            "stores": [s["store_number"] for s in stores],
+        })
+    # Магазины без центра
+    orphans = db.execute(
+        "SELECT store_number FROM store_access WHERE center_id IS NULL ORDER BY store_number"
+    ).fetchall()
+    if orphans:
+        result.append({
+            "id": None,
+            "name": "Без центра",
+            "stores": [s["store_number"] for s in orphans],
+        })
+    return result
+
+
+def add_center(name: str) -> int:
+    """Создаёт центр. Возвращает id."""
+    db = get_db()
+    cursor = db.execute("INSERT INTO centers (name) VALUES (?)", (name.strip(),))
+    db.commit()
+    return cursor.lastrowid
+
+
+def rename_center(center_id: int, name: str):
+    """Переименовывает центр."""
+    db = get_db()
+    db.execute("UPDATE centers SET name = ? WHERE id = ?", (name.strip(), center_id))
+    db.commit()
+
+
+def delete_center(center_id: int):
+    """Удаляет центр. Магазины получают center_id = NULL."""
+    db = get_db()
+    db.execute("UPDATE store_access SET center_id = NULL WHERE center_id = ?", (center_id,))
+    db.execute("DELETE FROM centers WHERE id = ?", (center_id,))
+    db.commit()
+
+
+def add_store_to_center(store_number: str, center_id: int, address: str = ""):
+    """Добавляет магазин в центр. Создаёт запись store_access если нет."""
+    db = get_db()
+    existing = db.execute(
+        "SELECT store_number FROM store_access WHERE store_number = ?",
+        (store_number,),
+    ).fetchone()
+    if existing:
+        db.execute(
+            "UPDATE store_access SET center_id = ?, address = ? WHERE store_number = ?",
+            (center_id, address, store_number),
+        )
+    else:
+        db.execute(
+            """INSERT INTO store_access (store_number, access_code, role, center_id, address)
+               VALUES (?, ?, 'director', ?, ?)""",
+            (store_number, store_number, center_id, address),
+        )
+    db.commit()
+
+
+def import_centers_from_rows(rows: list[dict]) -> dict:
+    """
+    Массовый импорт центров и магазинов из Excel.
+    rows: [{"center": "Центр Восток", "store": "10065", "address": "ул. Ленина 5"}, ...]
+    Возвращает {"centers_created": N, "stores_added": N}.
+    """
+    db = get_db()
+    centers_created = 0
+    stores_added = 0
+
+    # Кэш центров name → id
+    center_cache = {}
+    for row in db.execute("SELECT id, name FROM centers").fetchall():
+        center_cache[row["name"]] = row["id"]
+
+    for row in rows:
+        center_name = (row.get("center") or "").strip()
+        store_number = (row.get("store") or "").strip()
+        address = (row.get("address") or "").strip()
+
+        if not center_name or not store_number:
+            continue
+
+        # Создаём центр если не существует
+        if center_name not in center_cache:
+            cursor = db.execute("INSERT INTO centers (name) VALUES (?)", (center_name,))
+            center_cache[center_name] = cursor.lastrowid
+            centers_created += 1
+
+        center_id = center_cache[center_name]
+
+        # Добавляем/обновляем магазин
+        existing = db.execute(
+            "SELECT store_number FROM store_access WHERE store_number = ?",
+            (store_number,),
+        ).fetchone()
+        if existing:
+            db.execute(
+                "UPDATE store_access SET center_id = ?, address = ? WHERE store_number = ?",
+                (center_id, address, store_number),
+            )
+        else:
+            db.execute(
+                """INSERT INTO store_access (store_number, access_code, role, center_id, address)
+                   VALUES (?, ?, 'director', ?, ?)""",
+                (store_number, store_number, center_id, address),
+            )
+        stores_added += 1
+
+    db.commit()
+    return {"centers_created": centers_created, "stores_added": stores_added}
+
+
+def remove_store(store_number: str):
+    """Удаляет магазин из системы."""
+    db = get_db()
+    db.execute("DELETE FROM store_access WHERE store_number = ?", (store_number,))
+    db.commit()
+
+
+def get_center_for_store(store_number: str):
+    """Возвращает center_id для магазина или None."""
+    db = get_db()
+    row = db.execute(
+        "SELECT center_id FROM store_access WHERE store_number = ?",
+        (store_number,),
+    ).fetchone()
+    return row["center_id"] if row else None
+
+
+def get_stores_in_center(center_id: int) -> list[str]:
+    """Список номеров магазинов в центре."""
+    db = get_db()
+    rows = db.execute(
+        "SELECT store_number FROM store_access WHERE center_id = ? ORDER BY store_number",
+        (center_id,),
+    ).fetchall()
+    return [r["store_number"] for r in rows]
+
+
+def update_store_code(store_number: str, new_code: str):
+    """Обновляет код доступа магазина."""
+    db = get_db()
+    db.execute(
+        "UPDATE store_access SET access_code = ? WHERE store_number = ?",
+        (new_code, store_number),
+    )
+    db.commit()
+
+
+def update_store_role(store_number: str, role: str):
+    """Обновляет роль магазина."""
+    db = get_db()
+    db.execute(
+        "UPDATE store_access SET role = ? WHERE store_number = ?",
+        (role, store_number),
+    )
+    db.commit()
+
+
+# ── Цены и потери ─────────────────────────────────────────────────────────
+
+def save_price(article: str, price: int):
+    db = get_db()
+    db.execute(
+        """INSERT INTO product_prices (article, price, fetched_at)
+           VALUES (?, ?, CURRENT_TIMESTAMP)
+           ON CONFLICT(article) DO UPDATE SET price = ?, fetched_at = CURRENT_TIMESTAMP""",
+        (article, price, price),
+    )
+    db.commit()
+
+
+def get_unfetched_articles() -> list[str]:
+    """Артикулы без цены или с ценой старше 7 дней."""
+    db = get_db()
+    rows = db.execute("""
+        SELECT DISTINCT sp.article
+        FROM store_products sp
+        LEFT JOIN product_prices pp ON sp.article = pp.article
+        WHERE pp.article IS NULL
+           OR pp.fetched_at < datetime('now', '-7 days')
+    """).fetchall()
+    return [r[0] for r in rows]
+
+
+def get_prices_count() -> dict:
+    db = get_db()
+    total = db.execute("SELECT COUNT(DISTINCT article) FROM store_products").fetchone()[0]
+    fetched = db.execute("SELECT COUNT(*) FROM product_prices WHERE price > 0").fetchone()[0]
+    return {"total": total, "fetched": fetched}
+
+
+def get_losses_report() -> dict:
+    """Расчёт потерь по магазинам с привязкой к центрам."""
+    db = get_db()
+
+    # Строим маппинг магазин → центр
+    center_map = {}
+    sa_rows = db.execute("""
+        SELECT sa.store_number, COALESCE(c.name, '') as center_name
+        FROM store_access sa LEFT JOIN centers c ON c.id = sa.center_id
+    """).fetchall()
+    for sa in sa_rows:
+        center_map[sa["store_number"]] = sa["center_name"]
+
+    rows = db.execute("""
+        SELECT
+            sp.store_number,
+            sp.article,
+            sp.name,
+            sp.available,
+            pp.price,
+            MIN(b.expiry_date) as worst_expiry
+        FROM store_products sp
+        JOIN batches b ON b.product_id = sp.id
+        JOIN product_prices pp ON pp.article = sp.article AND pp.price > 0
+        WHERE sp.no_expiry = 0
+        GROUP BY sp.id
+    """).fetchall()
+
+    stores = {}
+    totals = {"expired": 0, "d70": 0, "d50": 0, "total": 0}
+
+    for r in rows:
+        store = r[0]
+        available = r[3]
+        price = r[4]
+        worst_expiry = r[5]
+
+        if not worst_expiry:
+            continue
+
+        days_left = (date.fromisoformat(worst_expiry) - date.today()).days
+
+        if days_left <= 0:
+            loss = price * available
+            cat = "expired"
+        elif days_left <= config.DISCOUNT_THRESHOLDS["discount_70"]:
+            loss = int(price * 0.70 * available)
+            cat = "d70"
+        elif days_left <= config.DISCOUNT_THRESHOLDS["discount_50"]:
+            loss = int(price * 0.50 * available)
+            cat = "d50"
+        else:
+            continue
+
+        if store not in stores:
+            stores[store] = {
+                "store_number": store,
+                "center_name": center_map.get(store, ""),
+                "expired": 0, "d70": 0, "d50": 0, "total": 0,
+            }
+        stores[store][cat] += loss
+        stores[store]["total"] += loss
+        totals[cat] += loss
+        totals["total"] += loss
+
+    store_list = sorted(stores.values(), key=lambda x: x["total"], reverse=True)
+    return {"stores": store_list, "totals": totals}

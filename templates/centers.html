@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Центры — Kari{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">Управление центрами</h5>
+    <button class="btn btn-sm btn-kari" onclick="showAddCenter()">+ Центр</button>
+</div>
+
+<!-- Форма добавления центра -->
+<div id="add-center-form" class="card mb-3" style="display:none;">
+    <div class="card-body p-3">
+        <div class="input-group">
+            <input type="text" id="new-center-name" class="form-control form-control-sm"
+                   placeholder="Название центра..." maxlength="50">
+            <button class="btn btn-sm btn-success" onclick="addCenter()">Добавить</button>
+            <button class="btn btn-sm btn-secondary" onclick="hideAddCenter()">Отмена</button>
+        </div>
+    </div>
+</div>
+
+{% for c in centers %}
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center py-2">
+        <div>
+            <strong>{{ c.name }}</strong>
+            <span class="badge bg-secondary ms-2">{{ c.store_count }} маг.</span>
+        </div>
+        <div class="d-flex gap-1">
+            <button class="btn btn-sm btn-outline-primary" title="Переименовать"
+                    onclick="renameCenter({{ c.id }}, '{{ c.name }}')">
+                <small>Переименовать</small>
+            </button>
+            <button class="btn btn-sm btn-outline-danger" title="Удалить"
+                    onclick="deleteCenter({{ c.id }}, '{{ c.name }}')">
+                <small>Удалить</small>
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-2">
+        <!-- Магазины центра -->
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-2">
+                <thead>
+                    <tr>
+                        <th>Магазин</th>
+                        <th>Код доступа</th>
+                        <th>Роль</th>
+                        <th style="width:80px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in c.stores %}
+                    <tr>
+                        <td>
+                            <a href="/store/{{ s.store_number }}" class="store-link fw-bold">
+                                {{ s.store_number }}
+                            </a>
+                        </td>
+                        <td>
+                            <code class="small">{{ s.access_code }}</code>
+                        </td>
+                        <td>
+                            <span class="badge {{ 'bg-primary' if s.role == 'center_manager' else 'bg-secondary' }}">
+                                {{ s.role }}
+                            </span>
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-danger py-0 px-1"
+                                    onclick="removeStore('{{ s.store_number }}', {{ c.id }})"
+                                    title="Убрать из центра">
+                                &times;
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not c.stores %}
+                    <tr><td colspan="4" class="text-muted text-center small">Нет магазинов</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Форма добавления магазина -->
+        <div class="input-group input-group-sm">
+            <input type="text" class="form-control" id="store-input-{{ c.id }}"
+                   placeholder="Номер магазина..." inputmode="numeric" maxlength="10">
+            <button class="btn btn-outline-success" onclick="addStore({{ c.id }})">
+                + Магазин
+            </button>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% if not centers %}
+<div class="alert alert-info">
+    Нет центров. Нажмите «+ Центр» чтобы создать первый.
+</div>
+{% endif %}
+
+<script>
+function showAddCenter() {
+    document.getElementById('add-center-form').style.display = 'block';
+    document.getElementById('new-center-name').focus();
+}
+function hideAddCenter() {
+    document.getElementById('add-center-form').style.display = 'none';
+}
+
+function addCenter() {
+    const name = document.getElementById('new-center-name').value.trim();
+    if (!name) return alert('Укажите название');
+    fetch('/api/center/add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name})
+    }).then(r => r.json()).then(d => {
+        if (d.ok) location.reload();
+        else alert(d.error || 'Ошибка');
+    });
+}
+
+function renameCenter(id, currentName) {
+    const name = prompt('Новое название центра:', currentName);
+    if (!name || name === currentName) return;
+    fetch('/api/center/rename', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({center_id: id, name})
+    }).then(r => r.json()).then(d => {
+        if (d.ok) location.reload();
+        else alert(d.error || 'Ошибка');
+    });
+}
+
+function deleteCenter(id, name) {
+    if (!confirm(`Удалить центр «${name}»? Магазины не удалятся, но потеряют привязку.`)) return;
+    fetch('/api/center/delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({center_id: id})
+    }).then(r => r.json()).then(d => {
+        if (d.ok) location.reload();
+        else alert(d.error || 'Ошибка');
+    });
+}
+
+function addStore(centerId) {
+    const input = document.getElementById('store-input-' + centerId);
+    const store = input.value.trim();
+    if (!store) return alert('Укажите номер магазина');
+    fetch('/api/center/add-store', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({store_number: store, center_id: centerId})
+    }).then(r => r.json()).then(d => {
+        if (d.ok) location.reload();
+        else alert(d.error || 'Ошибка');
+    });
+}
+
+function removeStore(storeNumber, centerId) {
+    if (!confirm(`Убрать магазин ${storeNumber} из системы?`)) return;
+    fetch('/api/center/remove-store', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({store_number: storeNumber})
+    }).then(r => r.json()).then(d => {
+        if (d.ok) location.reload();
+        else alert(d.error || 'Ошибка');
+    });
+}
+
+// Enter на input добавления центра
+document.getElementById('new-center-name')?.addEventListener('keyup', function(e) {
+    if (e.key === 'Enter') addCenter();
+});
+</script>
+
+{% endblock %}

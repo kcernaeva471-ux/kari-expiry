@@ -16,7 +16,7 @@ FLASK_PORT = int(os.environ.get("PORT", 5000))
 DASHBOARD_URL = os.environ.get("DASHBOARD_URL", f"http://localhost:{FLASK_PORT}")
 
 # ── База данных ────────────────────────────────────────────────────────────
-DATABASE_PATH = os.environ.get("DATABASE_PATH", os.path.join(os.path.dirname(__file__), "kari.db"))
+DATABASE_PATH = os.environ.get("DATABASE_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "kari.db"))
 
 # ── Авторизация ────────────────────────────────────────────────────────────
 ADMIN_CODE = os.environ.get("ADMIN_CODE", "0000")
@@ -24,7 +24,10 @@ ADMIN_CODE = os.environ.get("ADMIN_CODE", "0000")
 # ── Общее ──────────────────────────────────────────────────────────────────
 TIMEZONE = "Europe/Moscow"
 
-# ── Список магазинов (21 магазин) ──────────────────────────────────────────
+# ── Центры и магазины ─────────────────────────────────────────────────────
+DEFAULT_CENTER = "Центр 1"  # Название центра по умолчанию при миграции
+
+# Список магазинов (fallback, если БД пуста)
 VALID_STORES = [
     '10065', '10245', '10259', '10706', '10858',
     '10958', '10960', '10983', '11006', '11049',
@@ -52,7 +55,7 @@ STATUS_MAP = {
 # ── Цвета категорий (для веба) ────────────────────────────────────────────
 CATEGORY_STYLES = {
     "ПРОСРОЧЕН": {"bg": "#f8d7da", "text": "#721c24", "badge": "danger"},
-    "Скидка 70%": {"bg": "#ffe0b2", "text": "#e65100", "badge": "warning"},
+    "Скидка 70%": {"bg": "#fbe9d7", "text": "#6D4C30", "badge": "brown"},
     "Скидка 50%": {"bg": "#fff9c4", "text": "#f57f17", "badge": "warning"},
     "В норме": {"bg": "#c8e6c9", "text": "#1b5e20", "badge": "success"},
 }

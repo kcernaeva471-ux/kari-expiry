@@ -1,9 +1,11 @@
 """Flask-маршруты для веб-дашборда."""
 
 import os
+import time
 import tempfile
 from functools import wraps
 from datetime import datetime
+from collections import defaultdict
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
@@ -12,6 +14,31 @@ from flask import (
 
 import config
 import database
+
+try:
+    import price_fetcher
+except Exception:
+    price_fetcher = None
+
+# ── Защита от перебора кодов ──────────────────────────────────────────────
+_login_attempts = defaultdict(list)  # IP → [timestamps]
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_BLOCK_SECONDS = 300  # 5 минут блокировки
+
+
+def _is_blocked(ip: str) -> bool:
+    """Проверяет, заблокирован ли IP после множества неудачных попыток."""
+    now = time.time()
+    _login_attempts[ip] = [t for t in _login_attempts[ip] if now - t < LOGIN_BLOCK_SECONDS]
+    return len(_login_attempts[ip]) >= MAX_LOGIN_ATTEMPTS
+
+
+def _record_failed(ip: str):
+    _login_attempts[ip].append(time.time())
+
+
+def _clear_attempts(ip: str):
+    _login_attempts.pop(ip, None)
 
 
 def create_app() -> Flask:
@@ -22,6 +49,44 @@ def create_app() -> Flask:
     )
     app.secret_key = config.FLASK_SECRET_KEY
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+    # ── Gzip-сжатие ответов ──────────────────────────────────────────────
+    import gzip as _gzip
+    import io as _io
+
+    @app.after_request
+    def compress_response(response):
+        if (response.status_code < 200 or response.status_code >= 300
+                or response.direct_passthrough
+                or "Content-Encoding" in response.headers
+                or "gzip" not in request.headers.get("Accept-Encoding", "")):
+            return response
+        ct = response.content_type or ""
+        if not (ct.startswith("text/") or "json" in ct or "javascript" in ct):
+            return response
+        data = response.get_data()
+        if len(data) < 512:
+            return response
+        buf = _io.BytesIO()
+        with _gzip.GzipFile(fileobj=buf, mode="wb", compresslevel=6) as gz:
+            gz.write(data)
+        response.set_data(buf.getvalue())
+        response.headers["Content-Encoding"] = "gzip"
+        response.headers["Content-Length"] = len(response.get_data())
+        response.headers["Vary"] = "Accept-Encoding"
+        return response
+
+    # ── Заголовки безопасности ─────────────────────────────────────────────
+
+    @app.after_request
+    def add_security_headers(response):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
 
     # ── Авторизация ────────────────────────────────────────────────────────
 
@@ -47,20 +112,41 @@ def create_app() -> Flask:
     @app.route("/login", methods=["GET", "POST"])
     def login():
         if request.method == "POST":
+            ip = request.remote_addr or "unknown"
+
+            if _is_blocked(ip):
+                remaining = int(LOGIN_BLOCK_SECONDS - (time.time() - min(_login_attempts[ip])))
+                flash(f"Слишком много попыток. Подождите {remaining // 60 + 1} мин.", "danger")
+                return render_template("login.html",
+                                       stores_grouped=database.get_stores_grouped_by_center())
+
             store = request.form.get("store_number", "").strip()
             code = request.form.get("access_code", "").strip()
 
             result = database.check_access(store, code)
             if result:
+                _clear_attempts(ip)
                 session["store_number"] = result["store_number"]
                 session["role"] = result["role"]
+                # Сохраняем center_id в сессию для center_manager
+                if result["role"] not in ("admin",):
+                    cid = database.get_center_for_store(result["store_number"])
+                    if cid:
+                        session["center_id"] = cid
+                database.log_activity(result["store_number"], "login", f"Вход в систему")
                 if result["role"] == "admin":
                     return redirect(url_for("dashboard"))
                 return redirect(url_for("store_detail", store_number=result["store_number"]))
 
-            flash("Неверный код доступа", "danger")
+            _record_failed(ip)
+            attempts_left = MAX_LOGIN_ATTEMPTS - len(_login_attempts[ip])
+            if attempts_left > 0:
+                flash(f"Неверный код доступа (осталось {attempts_left} попыток)", "danger")
+            else:
+                flash(f"Доступ заблокирован на {LOGIN_BLOCK_SECONDS // 60} минут", "danger")
 
-        return render_template("login.html", stores=config.VALID_STORES)
+        return render_template("login.html",
+                               stores_grouped=database.get_stores_grouped_by_center())
 
     @app.route("/logout")
     def logout():
@@ -137,6 +223,9 @@ def create_app() -> Flask:
             quantity = 0
 
         batch_id = database.add_batch(product_id, production_date, shelf_life_months, quantity)
+        store = session.get("store_number", "?")
+        database.log_activity(store, "add_batch",
+                              f"Товар #{product_id}: {production_date}, {shelf_life_months} мес., {quantity} шт.")
         return jsonify({"ok": True, "batch_id": batch_id})
 
     @app.route("/api/batch/delete", methods=["POST"])
@@ -154,6 +243,8 @@ def create_app() -> Flask:
             return jsonify({"error": "Неверные данные"}), 400
 
         database.delete_batch(batch_id)
+        store = session.get("store_number", "?")
+        database.log_activity(store, "delete_batch", f"Удалена партия #{batch_id}")
         return jsonify({"ok": True})
 
     @app.route("/api/product/no-expiry", methods=["POST"])
@@ -183,16 +274,23 @@ def create_app() -> Flask:
                 return jsonify({"error": "Нет доступа"}), 403
 
         database.mark_no_expiry(product_id, value)
+        store = session.get("store_number", "?")
+        action = "no_expiry" if value else "undo_no_expiry"
+        database.log_activity(store, action, f"Товар #{product_id}")
         return jsonify({"ok": True})
 
     # ── API ───────────────────────────────────────────────────────────────
 
     @app.route("/api/stores")
+    @login_required
     def api_stores():
         return jsonify(database.get_all_stores_summary())
 
     @app.route("/api/store/<store_number>")
+    @login_required
     def api_store(store_number):
+        if session.get("role") != "admin" and session.get("store_number") != store_number:
+            return jsonify({"error": "Нет доступа"}), 403
         filter_status = request.args.get("filter")
         return jsonify(database.get_store_products(store_number, filter_status))
 
@@ -207,6 +305,48 @@ def create_app() -> Flask:
         return render_template("dashboard.html",
                                stores=stores,
                                codes=codes, show_codes=True)
+
+    # ── Журнал активности (админ) ─────────────────────────────────────────
+
+    @app.route("/activity")
+    @login_required
+    @admin_required
+    def activity():
+        store_filter = request.args.get("store")
+        summary = database.get_activity_summary()
+        log = database.get_activity_log(200, store_filter)
+        stores_completion = database.get_all_stores_summary()
+        try:
+            losses = database.get_losses_report()
+            prices_count = database.get_prices_count()
+        except Exception:
+            losses = {"stores": [], "totals": {"expired": 0, "d70": 0, "d50": 0, "total": 0}}
+            prices_count = {"total": 0, "fetched": 0}
+        fetch_status = price_fetcher.get_status() if price_fetcher else {"running": False, "done": 0, "total": 0, "errors": 0}
+        return render_template("activity.html",
+                               summary=summary, log=log,
+                               store_filter=store_filter,
+                               stores_completion=stores_completion,
+                               losses=losses,
+                               prices_count=prices_count,
+                               fetch_status=fetch_status)
+
+    @app.route("/api/fetch-prices", methods=["POST"])
+    @login_required
+    @admin_required
+    def api_fetch_prices():
+        if not price_fetcher:
+            return jsonify({"error": "price_fetcher not available"}), 500
+        price_fetcher.fetch_all_prices()
+        return jsonify({"ok": True, "status": price_fetcher.get_status()})
+
+    @app.route("/api/fetch-prices/status")
+    @login_required
+    @admin_required
+    def api_fetch_prices_status():
+        if not price_fetcher:
+            return jsonify({"running": False, "done": 0, "total": 0, "errors": 0})
+        return jsonify(price_fetcher.get_status())
 
     # ── Загрузка данных (админ) ──────────────────────────────────────────
 
@@ -260,5 +400,163 @@ def create_app() -> Flask:
                     os.unlink(catalog_path)
 
         return render_template("upload.html")
+
+    # ── Центры (админ) ──────────────────────────────────────────────────
+
+    @app.route("/centers")
+    @login_required
+    @admin_required
+    def centers():
+        center_list = database.get_centers()
+        # Для каждого центра загружаем магазины
+        for c in center_list:
+            c["stores"] = database.get_center_stores(c["id"])
+        return render_template("centers.html", centers=center_list)
+
+    @app.route("/api/center/add", methods=["POST"])
+    @login_required
+    @admin_required
+    def api_add_center():
+        data = request.get_json() or request.form
+        name = (data.get("name") or "").strip()
+        if not name:
+            return jsonify({"error": "Укажите название центра"}), 400
+        try:
+            center_id = database.add_center(name)
+            database.log_activity("admin", "add_center", f"Центр «{name}»")
+            return jsonify({"ok": True, "center_id": center_id})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 400
+
+    @app.route("/api/center/rename", methods=["POST"])
+    @login_required
+    @admin_required
+    def api_rename_center():
+        data = request.get_json() or request.form
+        center_id = data.get("center_id")
+        name = (data.get("name") or "").strip()
+        if not center_id or not name:
+            return jsonify({"error": "Укажите id и название"}), 400
+        try:
+            database.rename_center(int(center_id), name)
+            return jsonify({"ok": True})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 400
+
+    @app.route("/api/center/delete", methods=["POST"])
+    @login_required
+    @admin_required
+    def api_delete_center():
+        data = request.get_json() or request.form
+        center_id = data.get("center_id")
+        if not center_id:
+            return jsonify({"error": "Укажите id центра"}), 400
+        database.delete_center(int(center_id))
+        database.log_activity("admin", "delete_center", f"Центр #{center_id}")
+        return jsonify({"ok": True})
+
+    @app.route("/api/center/add-store", methods=["POST"])
+    @login_required
+    @admin_required
+    def api_add_store_to_center():
+        data = request.get_json() or request.form
+        store_number = (data.get("store_number") or "").strip()
+        center_id = data.get("center_id")
+        address = (data.get("address") or "").strip()
+        if not store_number or not center_id:
+            return jsonify({"error": "Укажите магазин и центр"}), 400
+        database.add_store_to_center(store_number, int(center_id), address)
+        database.log_activity("admin", "add_store",
+                              f"Магазин {store_number} → центр #{center_id}")
+        return jsonify({"ok": True})
+
+    @app.route("/api/center/import", methods=["POST"])
+    @login_required
+    @admin_required
+    def api_import_centers():
+        """Импорт центров и магазинов из Excel (колонки: Центр, Магазин, Адрес)."""
+        file = request.files.get("file")
+        if not file or not file.filename.endswith((".xlsx", ".xls")):
+            return jsonify({"error": "Загрузите файл .xlsx"}), 400
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+        tmp_path = tmp.name
+        file.save(tmp_path)
+        tmp.close()
+
+        try:
+            import openpyxl
+            wb = openpyxl.load_workbook(tmp_path, read_only=True)
+            ws = wb.active
+
+            headers = {}
+            first_row = list(ws.iter_rows(min_row=1, max_row=1, values_only=False))[0]
+            for idx, cell in enumerate(first_row):
+                val = (str(cell.value or "")).strip().lower()
+                if val in ("центр", "center"):
+                    headers["center"] = idx
+                elif val in ("магазин", "store", "номер", "номер магазина"):
+                    headers["store"] = idx
+                elif val in ("адрес", "address"):
+                    headers["address"] = idx
+
+            if "center" not in headers or "store" not in headers:
+                wb.close()
+                return jsonify({"error": "Нужны колонки: Центр, Магазин (и опционально Адрес)"}), 400
+
+            rows = []
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                center_val = row[headers["center"]] if headers["center"] < len(row) else None
+                store_val = row[headers["store"]] if headers["store"] < len(row) else None
+                addr_idx = headers.get("address", 999)
+                address_val = row[addr_idx] if addr_idx < len(row) else ""
+
+                if center_val and store_val:
+                    store_str = str(int(store_val) if isinstance(store_val, float) else store_val).strip()
+                    rows.append({
+                        "center": str(center_val).strip(),
+                        "store": store_str,
+                        "address": str(address_val or "").strip(),
+                    })
+
+            wb.close()
+
+            if not rows:
+                return jsonify({"error": "Нет данных для импорта"}), 400
+
+            result = database.import_centers_from_rows(rows)
+            database.log_activity("admin", "import_centers",
+                                  f"Импорт: {result['centers_created']} центров, {result['stores_added']} магазинов")
+            return jsonify({"ok": True, **result})
+
+        except Exception as e:
+            return jsonify({"error": f"Ошибка: {e}"}), 400
+        finally:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+
+    @app.route("/api/center/remove-store", methods=["POST"])
+    @login_required
+    @admin_required
+    def api_remove_store():
+        data = request.get_json() or request.form
+        store_number = (data.get("store_number") or "").strip()
+        if not store_number:
+            return jsonify({"error": "Укажите магазин"}), 400
+        database.remove_store(store_number)
+        database.log_activity("admin", "remove_store", f"Магазин {store_number}")
+        return jsonify({"ok": True})
+
+    @app.route("/api/store/update-code", methods=["POST"])
+    @login_required
+    @admin_required
+    def api_update_store_code():
+        data = request.get_json() or request.form
+        store_number = (data.get("store_number") or "").strip()
+        new_code = (data.get("new_code") or "").strip()
+        if not store_number or not new_code:
+            return jsonify({"error": "Укажите магазин и новый код"}), 400
+        database.update_store_code(store_number, new_code)
+        return jsonify({"ok": True})
 
     return app

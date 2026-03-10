@@ -2,18 +2,23 @@ services:
   - type: web
     name: kari-expiry
     runtime: python
+    plan: starter
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:flask_app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
+    startCommand: gunicorn app:flask_app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    disk:
+      name: kari-data
+      mountPath: /data
+      sizeGB: 1
     envVars:
       - key: TELEGRAM_BOT_TOKEN
         value: 8669528097:AAEqZ9nUjTczM0bejmbLzNBf-JFrSheXvk8
       - key: TELEGRAM_CHAT_ID
         value: "-1001625248856"
       - key: FLASK_SECRET_KEY
-        value: kari-expiry-secret-2024
+        generateValue: true
       - key: ADMIN_CODE
         value: "0000"
       - key: DATABASE_PATH
-        value: kari.db
+        value: /data/kari.db
       - key: PYTHON_VERSION
         value: "3.11.0"

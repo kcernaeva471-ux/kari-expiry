@@ -1,87 +1,172 @@
 {% extends "base.html" %}
 {% block title %}Сводка — Kari{% endblock %}
 {% block content %}
-<h5 class="mb-3">Сводка по магазинам</h5>
 
+<div class="page-header">
+    <h5>Сводка по магазинам</h5>
+    <span class="text-muted small">{{ stores | length }} магазинов</span>
+</div>
+
+<!-- Краткая инструкция -->
+<div class="instruction-card mb-3">
+    <div class="instruction-toggle" onclick="toggleInstruction()">
+        <span>📋 Как пользоваться системой?</span>
+        <small class="text-muted" id="instr-hint">(нажмите чтобы развернуть)</small>
+    </div>
+    <div class="instruction-body" id="instruction-body" style="display: none;">
+        <div class="row g-2 mt-1">
+            <div class="col-12">
+                <b>1.</b> Войдите в свой магазин по коду доступа<br>
+                <b>2.</b> Нажмите на товар → укажите <b>дату производства</b> и <b>срок годности</b> в месяцах<br>
+                <b>3.</b> Система автоматически рассчитает статус товара:
+            </div>
+            <div class="col-6 col-sm-3">
+                <div class="d-flex align-items-center gap-1">
+                    <span class="badge bg-danger">ПРОСРОЧЕН</span>
+                    <small>— срок вышел</small>
+                </div>
+            </div>
+            <div class="col-6 col-sm-3">
+                <div class="d-flex align-items-center gap-1">
+                    <span class="badge bg-brown">70%</span>
+                    <small>— осталось &lt;90 дн.</small>
+                </div>
+            </div>
+            <div class="col-6 col-sm-3">
+                <div class="d-flex align-items-center gap-1">
+                    <span class="badge bg-yellow">50%</span>
+                    <small>— осталось &lt;180 дн.</small>
+                </div>
+            </div>
+            <div class="col-6 col-sm-3">
+                <div class="d-flex align-items-center gap-1">
+                    <span class="badge bg-success">OK</span>
+                    <small>— всё в порядке</small>
+                </div>
+            </div>
+            <div class="col-12 mt-1">
+                <small class="text-muted">Колонка <b>«Осталось»</b> — сколько товаров ещё не внесли. <b>«Прогресс»</b> — процент заполненных.</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="table-modern">
 <div class="table-responsive">
-    <table class="table table-sm table-hover align-middle">
-        <thead class="table-dark">
+    <table class="table table-sm table-hover align-middle mb-0">
+        <thead>
             <tr>
                 <th>Магазин</th>
-                <th class="text-center">Всего</th>
-                <th class="text-center">
-                    <span class="d-none d-md-inline">Не заполнен</span>
-                    <span class="d-md-none">Пуст.</span>
-                </th>
-                <th class="text-center">
-                    <span class="d-none d-md-inline">Просрочен</span>
-                    <span class="d-md-none">Пр.</span>
-                </th>
+                <th class="text-center">Товары</th>
+                <th class="text-center">Осталось</th>
+                <th class="text-center" style="min-width:80px">Прогресс</th>
+                <th class="text-center">Просроч.</th>
                 <th class="text-center">70%</th>
                 <th class="text-center">50%</th>
                 <th class="text-center d-none d-sm-table-cell">Норма</th>
-                <th class="text-center d-none d-md-table-cell">Без срока</th>
             </tr>
         </thead>
         <tbody>
+            {# Группируем магазины по центрам #}
+            {% set ns = namespace(current_center='') %}
             {% for s in stores %}
-            <tr class="{{ 'table-danger' if s.get('ПРОСРОЧЕН', 0) > 0 else '' }}">
-                <td>
-                    <a href="/store/{{ s.store_number }}" class="fw-bold text-decoration-none">
-                        {{ s.store_number }}
-                    </a>
-                </td>
-                <td class="text-center">{{ s.total }}</td>
-                <td class="text-center">
-                    {% if s.not_filled > 0 %}
-                        <span class="badge bg-secondary">{{ s.not_filled }}</span>
-                    {% else %}
-                        <span class="text-success">0</span>
-                    {% endif %}
-                </td>
-                <td class="text-center">
-                    {% if s.get('ПРОСРОЧЕН', 0) > 0 %}
-                        <span class="badge bg-danger">{{ s['ПРОСРОЧЕН'] }}</span>
-                    {% else %}
-                        <span class="text-muted">0</span>
-                    {% endif %}
-                </td>
-                <td class="text-center">
-                    {% if s.get('Скидка 70%', 0) > 0 %}
-                        <span class="badge bg-warning text-dark">{{ s['Скидка 70%'] }}</span>
-                    {% else %}
-                        <span class="text-muted">0</span>
-                    {% endif %}
-                </td>
-                <td class="text-center">
-                    {% if s.get('Скидка 50%', 0) > 0 %}
-                        <span class="badge bg-warning text-dark">{{ s['Скидка 50%'] }}</span>
-                    {% else %}
-                        <span class="text-muted">0</span>
-                    {% endif %}
-                </td>
-                <td class="text-center d-none d-sm-table-cell">
-                    <span class="text-success">{{ s.get('В норме', 0) }}</span>
-                </td>
-                <td class="text-center d-none d-md-table-cell text-muted">{{ s.no_expiry }}</td>
-            </tr>
+                {# Заголовок центра #}
+                {% set cname = s.get('center_name', '') or 'Без центра' %}
+                {% if cname != ns.current_center %}
+                    {% set ns.current_center = cname %}
+                    <tr class="table-light">
+                        <td colspan="8" class="fw-bold small text-muted py-1" style="background: #f0f0f0;">
+                            📁 {{ cname }}
+                        </td>
+                    </tr>
+                {% endif %}
+                {% set filled = s.total - s.not_filled - s.no_expiry %}
+                {% set done = filled + s.no_expiry %}
+                {% set pct = ((done / s.total) * 100) | int if s.total > 0 else 0 %}
+                <tr class="{{ 'table-danger' if s.get('ПРОСРОЧЕН', 0) > 0 else '' }}">
+                    <td>
+                        <a href="/store/{{ s.store_number }}" class="store-link">
+                            {{ s.store_number }}
+                        </a>
+                    </td>
+                    <td class="text-center">{{ s.total }}</td>
+                    <td class="text-center">
+                        {% if s.not_filled > 0 %}
+                            <span class="badge-pill bg-secondary text-white">{{ s.not_filled }}</span>
+                        {% else %}
+                            <span class="text-success fw-bold">0</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <div class="progress" style="height: 16px;">
+                            <div class="progress-bar {{ 'bg-success' if pct == 100 else ('bg-warning' if pct >= 50 else 'bg-danger') }}"
+                                 style="width: {{ pct }}%;">
+                                {{ pct }}%
+                            </div>
+                        </div>
+                    </td>
+                    <td class="text-center">
+                        {% if s.get('ПРОСРОЧЕН', 0) > 0 %}
+                            <span class="badge-pill bg-danger text-white">{{ s['ПРОСРОЧЕН'] }}</span>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if s.get('Скидка 70%', 0) > 0 %}
+                            <span class="badge-pill bg-brown text-white">{{ s['Скидка 70%'] }}</span>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if s.get('Скидка 50%', 0) > 0 %}
+                            <span class="badge-pill bg-yellow text-dark">{{ s['Скидка 50%'] }}</span>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center d-none d-sm-table-cell">
+                        <span class="text-success fw-bold">{{ s.get('В норме', 0) }}</span>
+                    </td>
+                </tr>
             {% endfor %}
         </tbody>
     </table>
+</div>
 </div>
 
 {% if show_codes %}
-<hr>
-<h5>Коды доступа магазинов</h5>
-<div class="table-responsive">
-    <table class="table table-sm">
-        <thead><tr><th>Магазин</th><th>Код</th></tr></thead>
-        <tbody>
-            {% for c in codes %}
-            <tr><td>{{ c.store_number }}</td><td><code>{{ c.access_code }}</code></td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="mt-4">
+    <div class="page-header">
+        <h5>Коды доступа магазинов</h5>
+    </div>
+    <div class="table-modern">
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead><tr><th>Магазин</th><th>Код</th></tr></thead>
+            <tbody>
+                {% for c in codes %}
+                <tr><td class="fw-bold">{{ c.store_number }}</td><td><code class="fs-6">{{ c.access_code }}</code></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    </div>
 </div>
 {% endif %}
+
+<script>
+function toggleInstruction() {
+    var body = document.getElementById('instruction-body');
+    var hint = document.getElementById('instr-hint');
+    if (body.style.display === 'none') {
+        body.style.display = 'block';
+        hint.textContent = '(свернуть)';
+    } else {
+        body.style.display = 'none';
+        hint.textContent = '(нажмите чтобы развернуть)';
+    }
+}
+</script>
 {% endblock %}

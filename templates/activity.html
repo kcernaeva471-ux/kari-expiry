@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+{% block title %}Активность — Kari{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <h5>Контроль активности</h5>
+</div>
+
+<!-- Заполненность сроков годности по магазинам -->
+<h6 class="mb-2 fw-bold">Заполненность сроков годности</h6>
+<div class="table-modern mb-4">
+<div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+        <thead>
+            <tr>
+                <th>Магазин</th>
+                <th>Всего</th>
+                <th>Заполнено</th>
+                <th>Без срока</th>
+                <th>Не внесено</th>
+                <th style="min-width:120px">Прогресс</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in stores_completion %}
+            {% if s.total > 0 %}
+            {% set filled = s.total - s.not_filled - s.no_expiry %}
+            {% set done = filled + s.no_expiry %}
+            {% set pct = ((done / s.total) * 100) | int if s.total > 0 else 0 %}
+            <tr class="{{ 'table-danger' if s.not_filled > 0 and pct < 50 else ('table-warning' if s.not_filled > 0 and pct < 100 else 'table-success') }}">
+                <td>
+                    <a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a>
+                </td>
+                <td>{{ s.total }}</td>
+                <td>{{ filled }}</td>
+                <td>{{ s.no_expiry }}</td>
+                <td>
+                    {% if s.not_filled > 0 %}
+                        <span class="fw-bold text-danger">{{ s.not_filled }}</span>
+                    {% else %}
+                        <span class="text-success">0</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="progress" style="height: 18px;">
+                        <div class="progress-bar {{ 'bg-success' if pct == 100 else ('bg-warning' if pct >= 50 else 'bg-danger') }}"
+                             style="width: {{ pct }}%;" role="progressbar">
+                            {{ pct }}%
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+</div>
+
+{% set not_filled_stores = [] %}
+{% for s in stores_completion %}
+    {% if s.total > 0 and s.not_filled > 0 %}
+        {% if not_filled_stores.append(s) %}{% endif %}
+    {% endif %}
+{% endfor %}
+{% if not_filled_stores %}
+<div class="alert alert-danger py-2 small mb-4">
+    <b>Не внесли все данные:</b>
+    {% for s in not_filled_stores %}
+        <span class="badge bg-danger">{{ s.store_number }} ({{ s.not_filled }} тов.)</span>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Потери в деньгах -->
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h6 class="mb-0 fw-bold">Потери в деньгах</h6>
+    <div class="d-flex align-items-center gap-2">
+        <small class="text-muted">Цены: {{ prices_count.fetched }}/{{ prices_count.total }}</small>
+        <button class="btn btn-sm btn-outline-primary" id="btn-fetch-prices" onclick="fetchPrices()">
+            Обновить цены
+        </button>
+    </div>
+</div>
+
+<div id="fetch-progress" style="display: none;" class="alert alert-info py-2 small mb-2">
+    Загрузка цен: <span id="fetch-done">0</span>/<span id="fetch-total">0</span>
+    <div class="progress mt-1" style="height: 6px;">
+        <div class="progress-bar" id="fetch-bar" style="width: 0%;"></div>
+    </div>
+</div>
+
+{# Карта заполненности по магазинам для колонки потерь #}
+{% set completion_map = {} %}
+{% set ns = namespace(total_all=0, done_all=0) %}
+{% for sc in stores_completion %}
+    {% if sc.total > 0 %}
+        {% set done = sc.total - sc.not_filled %}
+        {% set pct = ((done / sc.total) * 100) | int %}
+        {% if completion_map.update({sc.store_number: pct}) %}{% endif %}
+        {% set ns.total_all = ns.total_all + sc.total %}
+        {% set ns.done_all = ns.done_all + done %}
+    {% endif %}
+{% endfor %}
+{% set avg_pct = ((ns.done_all / ns.total_all) * 100) | int if ns.total_all > 0 else 0 %}
+
+{% if losses.totals.total > 0 %}
+<div class="row g-2 mb-3">
+    <div class="col-6 col-sm">
+        <div class="summary-card" style="background: #f8d7da;">
+            <div class="count text-danger" style="font-size: 1.2rem;">{{ '{:,.0f}'.format(losses.totals.expired).replace(',', ' ') }} ₽</div>
+            <small>Просрочен</small>
+        </div>
+    </div>
+    <div class="col-6 col-sm">
+        <div class="summary-card" style="background: #fbe9d7;">
+            <div class="count" style="font-size: 1.2rem; color: #6D4C30;">{{ '{:,.0f}'.format(losses.totals.d70).replace(',', ' ') }} ₽</div>
+            <small>Скидка 70%</small>
+        </div>
+    </div>
+    <div class="col-6 col-sm">
+        <div class="summary-card" style="background: #fff9c4;">
+            <div class="count" style="font-size: 1.2rem; color: #f57f17;">{{ '{:,.0f}'.format(losses.totals.d50).replace(',', ' ') }} ₽</div>
+            <small>Скидка 50%</small>
+        </div>
+    </div>
+    <div class="col-6 col-sm">
+        <div class="summary-card" style="background: #e8e8e8;">
+            <div class="count" style="font-size: 1.2rem; color: #333;">{{ '{:,.0f}'.format(losses.totals.total).replace(',', ' ') }} ₽</div>
+            <small>Итого потери</small>
+        </div>
+    </div>
+    <div class="col-6 col-sm">
+        <div class="summary-card" style="background: {{ '#d4edda' if avg_pct >= 80 else ('#fff3cd' if avg_pct >= 50 else '#f8d7da') }};">
+            <div class="count" style="font-size: 1.2rem; color: {{ '#198754' if avg_pct >= 80 else ('#856404' if avg_pct >= 50 else '#dc3545') }};">{{ avg_pct }}%</div>
+            <small>Заполнено (сред.)</small>
+        </div>
+    </div>
+</div>
+
+{% if losses.stores %}
+<div class="table-modern mb-4">
+<div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+        <thead>
+            <tr>
+                <th>Магазин</th>
+                <th class="text-end">Просроч.</th>
+                <th class="text-end">70%</th>
+                <th class="text-end">50%</th>
+                <th class="text-end fw-bold">Итого</th>
+                <th style="min-width:100px">Заполнено</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% set lns = namespace(current_center='') %}
+            {% for s in losses.stores | sort(attribute='center_name') %}
+            {% set cname = s.get('center_name', '') or 'Без центра' %}
+            {% if cname != lns.current_center %}
+                {% set lns.current_center = cname %}
+                <tr class="table-light">
+                    <td colspan="6" class="fw-bold small text-muted py-1" style="background: #f0f0f0;">
+                        📁 {{ cname }}
+                    </td>
+                </tr>
+            {% endif %}
+            {% set spct = completion_map.get(s.store_number, 0) %}
+            <tr>
+                <td><a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a></td>
+                <td class="text-end text-danger">{{ '{:,.0f}'.format(s.expired).replace(',', ' ') }}</td>
+                <td class="text-end" style="color: #6D4C30;">{{ '{:,.0f}'.format(s.d70).replace(',', ' ') }}</td>
+                <td class="text-end" style="color: #f57f17;">{{ '{:,.0f}'.format(s.d50).replace(',', ' ') }}</td>
+                <td class="text-end fw-bold">{{ '{:,.0f}'.format(s.total).replace(',', ' ') }} ₽</td>
+                <td>
+                    <div class="progress" style="height: 18px;">
+                        <div class="progress-bar {{ 'bg-success' if spct >= 80 else ('bg-warning' if spct >= 50 else 'bg-danger') }}"
+                             style="width: {{ spct }}%;" role="progressbar">
+                            {{ spct }}%
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="alert alert-secondary py-2 small mb-4">
+    Нет данных о потерях. Нажмите «Обновить цены» чтобы загрузить цены с kari.com.
+</div>
+{% endif %}
+
+<!-- Сводка активности -->
+<h6 class="mb-2 fw-bold">Активность по магазинам</h6>
+<div class="table-modern mb-4">
+<div class="table-responsive">
+    <table class="table table-sm mb-0">
+        <thead>
+            <tr>
+                <th>Магазин</th>
+                <th>Входы</th>
+                <th>Партий добав.</th>
+                <th>Без срока</th>
+                <th>Последняя активность</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in summary %}
+            <tr>
+                <td>
+                    <a href="/activity?store={{ s.store_number }}" class="fw-bold">{{ s.store_number }}</a>
+                </td>
+                <td>{{ s.logins }}</td>
+                <td>{{ s.batches_added }}</td>
+                <td>{{ s.no_expiry_set }}</td>
+                <td>
+                    <small>{{ s.last_activity[:16] | replace('T', ' ') if s.last_activity else '—' }}</small>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+</div>
+
+{% set active_stores = summary | map(attribute='store_number') | list %}
+{% set all_stores = stores_completion | map(attribute='store_number') | list %}
+{% set inactive = [] %}
+{% for store in all_stores %}
+    {% if store not in active_stores %}
+        {% if inactive.append(store) %}{% endif %}
+    {% endif %}
+{% endfor %}
+{% if inactive %}
+<div class="alert alert-warning py-2 small">
+    <b>Не заходили:</b>
+    {% for store in inactive %}
+        <span class="badge bg-secondary">{{ store }}</span>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Фильтр -->
+<div class="d-flex gap-2 mb-2 align-items-center">
+    <h6 class="mb-0">Журнал</h6>
+    {% if store_filter %}
+        <span class="badge bg-primary">Магазин {{ store_filter }}</span>
+        <a href="/activity" class="btn btn-sm btn-outline-secondary">Все</a>
+    {% endif %}
+</div>
+
+<!-- Лог -->
+<div class="list-group mb-3">
+    {% for entry in log %}
+    <div class="list-group-item py-1 px-2" style="font-size: 0.8rem;">
+        <div class="d-flex justify-content-between">
+            <span>
+                <a href="/activity?store={{ entry.store_number }}" class="fw-bold text-decoration-none">
+                    {{ entry.store_number }}
+                </a>
+                &middot;
+                {% if entry.action == 'login' %}
+                    <span class="text-primary">Вход</span>
+                {% elif entry.action == 'add_batch' %}
+                    <span class="text-success">Добавил партию</span>
+                {% elif entry.action == 'delete_batch' %}
+                    <span class="text-danger">Удалил партию</span>
+                {% elif entry.action == 'no_expiry' %}
+                    <span class="text-info">Без срока</span>
+                {% elif entry.action == 'undo_no_expiry' %}
+                    <span class="text-warning">Вернул срок</span>
+                {% else %}
+                    {{ entry.action }}
+                {% endif %}
+            </span>
+            <small class="text-muted">{{ entry.created_at[:16] | replace('T', ' ') if entry.created_at else '' }}</small>
+        </div>
+        {% if entry.details %}
+            <small class="text-muted">{{ entry.details }}</small>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+{% if not log %}
+<div class="text-center text-muted py-4">
+    Пока нет активности
+</div>
+{% endif %}
+
+<script>
+function fetchPrices() {
+    var btn = document.getElementById('btn-fetch-prices');
+    var progress = document.getElementById('fetch-progress');
+    btn.disabled = true;
+    btn.textContent = 'Загрузка...';
+    progress.style.display = 'block';
+
+    fetch('/api/fetch-prices', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function() { pollStatus(); });
+}
+
+function pollStatus() {
+    fetch('/api/fetch-prices/status')
+        .then(function(r) { return r.json(); })
+        .then(function(s) {
+            document.getElementById('fetch-done').textContent = s.done;
+            document.getElementById('fetch-total').textContent = s.total;
+            var pct = s.total > 0 ? Math.round(s.done / s.total * 100) : 0;
+            document.getElementById('fetch-bar').style.width = pct + '%';
+
+            if (s.running) {
+                setTimeout(pollStatus, 2000);
+            } else {
+                document.getElementById('btn-fetch-prices').disabled = false;
+                document.getElementById('btn-fetch-prices').textContent = 'Обновить цены';
+                if (s.done > 0) {
+                    location.reload();
+                }
+            }
+        });
+}
+
+{% if fetch_status.running %}
+pollStatus();
+{% endif %}
+</script>
+
+{% endblock %}

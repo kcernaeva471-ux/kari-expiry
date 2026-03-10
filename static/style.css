@@ -1,36 +1,348 @@
-/* Карточки-счётчики */
+/* ── Kari Modern Design ─────────────────────────────────────────────── */
+
+:root {
+    --kari-purple: #991E66;
+    --kari-dark: #6d1549;
+    --kari-light: #f9f0f5;
+    --kari-pink: #e8a0c8;
+    --kari-gradient: linear-gradient(135deg, #991E66 0%, #c2185b 50%, #e91e63 100%);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+}
+
+body {
+    background: #f5f5f7;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ── Навбар ────────────────────────────────────────────────────────── */
+
+.navbar-kari {
+    background: var(--kari-gradient) !important;
+    padding: 0.5rem 1rem;
+    box-shadow: var(--shadow-md);
+}
+.navbar-kari .navbar-brand img {
+    filter: brightness(0) invert(1);
+}
+.navbar-kari .badge-role {
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+}
+.navbar-kari .nav-link-kari {
+    color: rgba(255,255,255,0.85);
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 20px;
+    transition: all 0.2s;
+}
+.navbar-kari .nav-link-kari:hover,
+.navbar-kari .nav-link-kari.active {
+    color: #fff;
+    background: rgba(255,255,255,0.2);
+}
+.navbar-kari .btn-logout {
+    color: rgba(255,255,255,0.7);
+    font-size: 0.8rem;
+    text-decoration: none;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.3);
+    transition: all 0.2s;
+}
+.navbar-kari .btn-logout:hover {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+}
+
+/* ── Карточки-счётчики ─────────────────────────────────────────────── */
+
 .summary-card {
-    border-radius: 12px;
+    border-radius: var(--radius);
     text-align: center;
-    padding: 0.6rem 0.3rem;
+    padding: 0.8rem 0.3rem;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid rgba(0,0,0,0.06);
+}
+.summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
 }
 .summary-card .count {
     font-size: 1.8rem;
-    font-weight: 700;
+    font-weight: 800;
     line-height: 1;
 }
 .summary-card small {
     font-size: 0.7rem;
     color: #555;
+    font-weight: 500;
 }
 
-/* Карточки товаров */
+/* ── Карточки товаров ──────────────────────────────────────────────── */
+
 .product-card {
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s;
+    border: 1px solid rgba(0,0,0,0.06);
+    background: #fff;
+}
+.product-card:hover {
+    box-shadow: var(--shadow-md);
+}
+.product-header {
+    transition: opacity 0.15s;
 }
 .product-header:active {
     opacity: 0.8;
 }
+.product-thumb {
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    border-radius: 6px;
+    margin-right: 8px;
+    flex-shrink: 0;
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.08);
+}
 .product-details {
-    border-color: #dee2e6 !important;
+    border-color: #eee !important;
+    background: #fafafa;
 }
 .add-batch-form {
-    border: 1px dashed #ccc;
+    border: 1px dashed #ddd;
+    background: #fff !important;
 }
 
-/* Мобильная оптимизация */
+/* ── Таблицы ───────────────────────────────────────────────────────── */
+
+.table-modern {
+    border-radius: var(--radius);
+    overflow: visible;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(0,0,0,0.06);
+}
+.table-modern .table-responsive {
+    border-radius: var(--radius);
+    -webkit-overflow-scrolling: touch;
+}
+.table-modern thead {
+    background: var(--kari-light);
+    border-bottom: 2px solid var(--kari-purple);
+}
+.table-modern thead th {
+    color: var(--kari-dark) !important;
+    font-weight: 700;
+    font-size: 0.78rem;
+    border: none;
+    padding: 0.6rem 0.4rem;
+    white-space: nowrap;
+}
+.table-modern tbody tr {
+    transition: background-color 0.15s;
+}
+.table-modern tbody tr:hover {
+    background: var(--kari-light);
+}
+.table-modern tbody td {
+    vertical-align: middle;
+    border-color: #f0f0f0;
+}
+
+/* ── Кнопки ────────────────────────────────────────────────────────── */
+
+.btn-kari {
+    background: var(--kari-gradient);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    padding: 0.5rem 1.5rem;
+    transition: all 0.2s;
+    box-shadow: var(--shadow-sm);
+}
+.btn-kari:hover {
+    color: #fff;
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+.btn-kari:active {
+    transform: translateY(0);
+}
+
+/* ── Страница логина ───────────────────────────────────────────────── */
+
+.login-page {
+    min-height: 100vh;
+    background: var(--kari-gradient);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+.login-card {
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: var(--shadow-lg);
+    max-width: 400px;
+    width: 100%;
+    padding: 2rem;
+    animation: fadeUp 0.4s ease-out;
+}
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.login-card .logo-circle {
+    width: 80px;
+    height: 80px;
+    background: var(--kari-light);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+}
+.login-card .form-control,
+.login-card .form-select {
+    border-radius: var(--radius-sm);
+    border: 2px solid #eee;
+    padding: 0.6rem 0.8rem;
+    transition: border-color 0.2s;
+}
+.login-card .form-control:focus,
+.login-card .form-select:focus {
+    border-color: var(--kari-purple);
+    box-shadow: 0 0 0 3px rgba(153, 30, 102, 0.15);
+}
+
+/* ── Фильтры ───────────────────────────────────────────────────────── */
+
+.filter-chip {
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1.5px solid;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+.filter-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* ── Бейджи ────────────────────────────────────────────────────────── */
+
+.badge-pill {
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+/* Коричневый (70%) и жёлтый (50%) */
+.bg-brown { background-color: #A67C52 !important; color: #fff; }
+.bg-yellow { background-color: #fdd835 !important; color: #333; }
+
+/* ── Инструкция ───────────────────────────────────────────────────── */
+
+.instruction-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+.instruction-toggle {
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: background 0.15s;
+}
+.instruction-toggle:hover {
+    background: var(--kari-light);
+}
+.instruction-body {
+    padding: 0 1rem 1rem;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    border-top: 1px solid #eee;
+}
+
+/* ── Прогресс-бар ──────────────────────────────────────────────────── */
+
+.progress {
+    border-radius: 10px;
+    background: #eee;
+    overflow: hidden;
+}
+.progress-bar {
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+/* ── Алерты ────────────────────────────────────────────────────────── */
+
+.alert {
+    border-radius: var(--radius-sm);
+    border: none;
+    box-shadow: var(--shadow-sm);
+}
+
+/* ── Поиск ─────────────────────────────────────────────────────────── */
+
+.search-input {
+    border-radius: 24px;
+    border: 2px solid #eee;
+    padding: 0.5rem 1rem 0.5rem 2.5rem;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23999' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E") no-repeat 12px center;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.search-input:focus {
+    border-color: var(--kari-purple);
+    box-shadow: 0 0 0 3px rgba(153, 30, 102, 0.12);
+    outline: none;
+}
+
+/* ── Заголовки страниц ─────────────────────────────────────────────── */
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--kari-light);
+}
+.page-header h5 {
+    font-weight: 700;
+    color: #333;
+    margin: 0;
+}
+
+/* ── Мобильная оптимизация ─────────────────────────────────────────── */
+
 @media (max-width: 576px) {
     .table td, .table th {
         font-size: 0.8rem;
@@ -51,17 +363,43 @@
     }
     .add-batch-form .col-5,
     .add-batch-form .col-3,
-    .add-batch-form .col-4 {
+    .add-batch-form .col-4,
+    .add-batch-form .col-2 {
         width: 100%;
         margin-bottom: 4px;
     }
+    .login-card {
+        padding: 1.5rem;
+        border-radius: 16px;
+    }
+    .navbar-kari {
+        padding: 0.4rem 0.6rem;
+    }
 }
 
-/* Строки таблицы */
+/* ── Строки таблицы ────────────────────────────────────────────────── */
+
 .table tbody tr {
     transition: background-color 0.15s;
 }
 
-/* Navbar compact */
-.navbar { padding: 0.3rem 0.5rem; }
-.navbar-brand { font-weight: 700; font-size: 1.1rem; }
+/* ── Ссылки на магазины в таблице ──────────────────────────────────── */
+
+.store-link {
+    color: var(--kari-purple);
+    font-weight: 700;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+.store-link:hover {
+    color: var(--kari-dark);
+    text-decoration: underline;
+}
+
+/* ── Контейнер страницы ────────────────────────────────────────────── */
+
+.content-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+}

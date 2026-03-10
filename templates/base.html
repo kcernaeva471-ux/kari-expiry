@@ -4,31 +4,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Kari — Сроки годности{% endblock %}</title>
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-180.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icon-180.png') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icon-192.png') }}">
+    <meta name="theme-color" content="#991E66">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Реализация">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <nav class="navbar navbar-expand-sm navbar-dark bg-dark">
+    {% block fullpage %}
+    <nav class="navbar navbar-kari navbar-expand-sm">
         <div class="container-fluid">
             <a class="navbar-brand d-flex align-items-center" href="/">
-                <img src="{{ url_for('static', filename='logo.svg') }}" alt="Kari" height="32">
+                <img src="{{ url_for('static', filename='logo.svg') }}" alt="Kari" height="30">
             </a>
             {% if session.get('role') %}
             <div class="d-flex align-items-center gap-2">
                 {% if session.get('role') == 'admin' %}
-                    <span class="badge bg-danger">Админ</span>
-                    <a href="/upload" class="btn btn-sm btn-outline-light">Импорт</a>
-                    <a href="/codes" class="btn btn-sm btn-outline-light">Коды</a>
+                    <span class="badge-role">Админ</span>
+                    <a href="/activity" class="nav-link-kari">Контроль</a>
+                    <a href="/centers" class="nav-link-kari">Центры</a>
+                    <a href="/upload" class="nav-link-kari">Импорт</a>
+                    <a href="/codes" class="nav-link-kari">Коды</a>
                 {% else %}
-                    <span class="badge bg-info">{{ session.get('store_number') }}</span>
+                    <span class="badge-role">{{ session.get('store_number') }}</span>
                 {% endif %}
-                <a href="/logout" class="btn btn-sm btn-outline-secondary">Выход</a>
+                <a href="/logout" class="btn-logout">Выход</a>
             </div>
             {% endif %}
         </div>
     </nav>
 
-    <div class="container-fluid mt-3 px-2 px-md-4">
+    <div class="content-container mt-3">
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
@@ -42,6 +53,7 @@
 
         {% block content %}{% endblock %}
     </div>
+    {% endblock %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
