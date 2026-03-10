@@ -16,7 +16,10 @@ FLASK_PORT = int(os.environ.get("PORT", 5000))
 DASHBOARD_URL = os.environ.get("DASHBOARD_URL", f"http://localhost:{FLASK_PORT}")
 
 # ── База данных ────────────────────────────────────────────────────────────
-DATABASE_PATH = os.environ.get("DATABASE_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "kari.db"))
+_default_db = os.path.join(os.path.dirname(os.path.abspath(__file__)), "kari.db")
+if os.path.isdir("/data"):
+    _default_db = "/data/kari.db"
+DATABASE_PATH = os.environ.get("DATABASE_PATH", _default_db)
 
 # ── Авторизация ────────────────────────────────────────────────────────────
 ADMIN_CODE = os.environ.get("ADMIN_CODE", "0000")
