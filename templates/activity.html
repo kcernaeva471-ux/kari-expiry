@@ -33,7 +33,7 @@
                 {% if cns.current_center and cns.c_total > 0 %}
                 {% set c_done = cns.c_filled + cns.c_noexp %}
                 {% set c_pct = ((c_done / cns.c_total) * 100) | int %}
-                <tr style="background: #f0e6ed; font-weight: 700;">
+                <tr class="center-summary" style="background: #f0e6ed; font-weight: 700;">
                     <td>Итого {{ cns.current_center }}</td>
                     <td class="text-end">{{ cns.c_total }}</td>
                     <td class="text-end">{{ cns.c_filled }}</td>
@@ -54,8 +54,10 @@
                 {% set cns.c_noexp = 0 %}
                 {% set cns.c_notfilled = 0 %}
                 {% set cns.c_testers = 0 %}
-                <tr class="table-light">
-                    <td colspan="7" class="fw-bold small text-muted py-1" style="background: #f0f0f0;">
+                <tr class="center-header" style="cursor: pointer; background: #f0f0f0;"
+                    data-cid="{{ s.center_id or 0 }}">
+                    <td colspan="7" class="fw-bold small text-muted py-1">
+                        <span class="center-arrow">▼</span>
                         📁 {{ cname }}
                     </td>
                 </tr>
@@ -69,7 +71,7 @@
             {% set cns.c_noexp = cns.c_noexp + s.no_expiry %}
             {% set cns.c_notfilled = cns.c_notfilled + s.not_filled %}
             {% set cns.c_testers = cns.c_testers + s.get('testers', 0) %}
-            <tr>
+            <tr class="center-row" data-cid="{{ s.center_id or 0 }}">
                 <td>
                     <a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a>
                 </td>
@@ -106,7 +108,7 @@
             {% if cns.c_total > 0 %}
             {% set c_done = cns.c_filled + cns.c_noexp %}
             {% set c_pct = ((c_done / cns.c_total) * 100) | int %}
-            <tr style="background: #f0e6ed; font-weight: 700;">
+            <tr class="center-summary" style="background: #f0e6ed; font-weight: 700;">
                 <td>Итого {{ cns.current_center }}</td>
                 <td class="text-end">{{ cns.c_total }}</td>
                 <td class="text-end">{{ cns.c_filled }}</td>
@@ -450,6 +452,21 @@
 {% endif %}
 
 <script>
+function toggleCenter(headerEl) {
+    var cid = headerEl.getAttribute('data-cid');
+    var rows = document.querySelectorAll('.center-row[data-cid="' + cid + '"]');
+    var arrow = headerEl.querySelector('.center-arrow');
+    var visible = rows.length > 0 && rows[0].style.display !== 'none';
+    for (var i = 0; i < rows.length; i++) {
+        rows[i].style.display = visible ? 'none' : '';
+    }
+    if (arrow) arrow.textContent = visible ? '▶' : '▼';
+}
+
+document.querySelectorAll('.center-header').forEach(function(tr) {
+    tr.addEventListener('click', function() { toggleCenter(tr); });
+});
+
 function fetchPrices() {
     var btn = document.getElementById('btn-fetch-prices');
     var progress = document.getElementById('fetch-progress');

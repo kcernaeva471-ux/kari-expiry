@@ -164,7 +164,7 @@ def setup_store_access():
                VALUES (?, ?, 'director', ?)
                ON CONFLICT(store_number) DO UPDATE SET
                    access_code = CASE WHEN access_code = store_number THEN ? ELSE access_code END,
-                   center_id = COALESCE(center_id, ?)""",
+                   center_id = ?""",
             (store, store, center_id, store, center_id),
         )
     db.commit()
