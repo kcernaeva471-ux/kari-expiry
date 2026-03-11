@@ -408,15 +408,18 @@ def get_store_products(store_number: str, filter_status: str = None) -> list[dic
             p["status"] = classify_days(worst)
             p["worst_days"] = worst
 
-        # Фильтр
+        # Собираем набор статусов всех партий товара
+        batch_statuses = {b["status"] for b in p["batches"]} if p["batches"] else set()
+
+        # Фильтр: товар попадает во вкладку, если ЛЮБАЯ его партия подходит
         if filter_status == "urgent":
-            if p["status"] in ("ПРОСРОЧЕН", "Скидка 70%", "Скидка 50%"):
+            if batch_statuses & {"ПРОСРОЧЕН", "Скидка 70%", "Скидка 50%"}:
                 products.append(p)
         elif filter_status == "Не заполнен":
             if p["status"] == "Не заполнен":
                 products.append(p)
         elif filter_status and filter_status != "all":
-            if p["status"] == filter_status:
+            if filter_status in batch_statuses or (not p["batches"] and p["status"] == filter_status):
                 products.append(p)
         else:
             products.append(p)
@@ -484,22 +487,25 @@ def get_all_stores_summary() -> list[dict]:
 
         not_filled = total - no_expiry - with_batches
 
-        # Считаем по категориям
+        # Считаем по категориям (товар в каждой категории, где есть хотя бы 1 партия)
         counts = {"ПРОСРОЧЕН": 0, "Скидка 70%": 0, "Скидка 50%": 0, "В норме": 0}
         batch_rows = db.execute(
-            """SELECT sp.id, MIN(b.expiry_date) as min_expiry
+            """SELECT sp.id, b.expiry_date
                FROM store_products sp
                JOIN batches b ON b.product_id = sp.id
-               WHERE sp.store_number = ?
-               GROUP BY sp.id""",
+               WHERE sp.store_number = ?""",
             (store,),
         ).fetchall()
 
+        product_cats = {}
         for br in batch_rows:
-            exp = date.fromisoformat(br["min_expiry"])
+            exp = date.fromisoformat(br["expiry_date"])
             days = (exp - today).days
-            cat = classify_days(days)
-            counts[cat] += 1
+            product_cats.setdefault(br["id"], set()).add(classify_days(days))
+
+        for cats in product_cats.values():
+            for cat in cats:
+                counts[cat] += 1
 
         result.append({
             "store_number": store,
@@ -537,16 +543,23 @@ def get_store_stats(store_number: str) -> dict:
 
     counts = {"ПРОСРОЧЕН": 0, "Скидка 70%": 0, "Скидка 50%": 0, "В норме": 0}
     batch_rows = db.execute(
-        """SELECT sp.id, MIN(b.expiry_date) as min_expiry
+        """SELECT sp.id, b.expiry_date
            FROM store_products sp JOIN batches b ON b.product_id = sp.id
-           WHERE sp.store_number = ? GROUP BY sp.id""",
+           WHERE sp.store_number = ?""",
         (store_number,),
     ).fetchall()
 
+    # Считаем: товар попадает в категорию, если ЛЮБАЯ партия подходит
+    product_cats = {}  # product_id -> set of categories
     for br in batch_rows:
-        exp = date.fromisoformat(br["min_expiry"])
+        exp = date.fromisoformat(br["expiry_date"])
         days = (exp - today).days
-        counts[classify_days(days)] += 1
+        cat = classify_days(days)
+        product_cats.setdefault(br["id"], set()).add(cat)
+
+    for cats in product_cats.values():
+        for cat in cats:
+            counts[cat] += 1
 
     return {
         "store_number": store_number,

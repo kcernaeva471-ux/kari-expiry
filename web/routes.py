@@ -118,8 +118,7 @@ def create_app() -> Flask:
             if _is_blocked(ip):
                 remaining = int(LOGIN_BLOCK_SECONDS - (time.time() - min(_login_attempts[ip])))
                 flash(f"Слишком много попыток. Подождите {remaining // 60 + 1} мин.", "danger")
-                return render_template("login.html",
-                                       stores_grouped=database.get_stores_grouped_by_center())
+                return render_template("login.html")
 
             store = request.form.get("store_number", "").strip()
             code = request.form.get("access_code", "").strip()
@@ -134,8 +133,11 @@ def create_app() -> Flask:
                     cid = database.get_center_for_store(result["store_number"])
                     if cid:
                         session["center_id"] = cid
+                # Проверяем дефолтный пароль (код == номер магазина)
+                if result["role"] != "admin" and code == store:
+                    flash("Смените стандартный код доступа!", "warning")
                 database.log_activity(result["store_number"], "login", f"Вход в систему")
-                if result["role"] == "admin":
+                if result["role"] in ("admin", "center_manager"):
                     return redirect(url_for("dashboard"))
                 return redirect(url_for("store_detail", store_number=result["store_number"]))
 
@@ -146,8 +148,7 @@ def create_app() -> Flask:
             else:
                 flash(f"Доступ заблокирован на {LOGIN_BLOCK_SECONDS // 60} минут", "danger")
 
-        return render_template("login.html",
-                               stores_grouped=database.get_stores_grouped_by_center())
+        return render_template("login.html")
 
     @app.route("/logout")
     def logout():
@@ -157,15 +158,30 @@ def create_app() -> Flask:
     @app.route("/")
     @login_required
     def dashboard():
-        if session.get("role") == "admin":
+        role = session.get("role")
+        if role == "admin":
             stores = database.get_all_stores_summary()
+            return render_template("dashboard.html", stores=stores)
+        if role == "center_manager":
+            stores = database.get_all_stores_summary()
+            cid = session.get("center_id")
+            stores = [s for s in stores if s.get("center_id") == cid]
             return render_template("dashboard.html", stores=stores)
         return redirect(url_for("store_detail", store_number=session["store_number"]))
 
     @app.route("/store/<store_number>")
     @login_required
     def store_detail(store_number):
-        if session.get("role") != "admin" and session.get("store_number") != store_number:
+        role = session.get("role")
+        if role == "admin":
+            pass  # доступ ко всем
+        elif role == "center_manager":
+            cid = session.get("center_id")
+            store_cid = database.get_center_for_store(store_number)
+            if store_cid != cid:
+                flash("Доступ только к магазинам вашего центра", "danger")
+                return redirect(url_for("dashboard"))
+        elif session.get("store_number") != store_number:
             flash("Доступ только к своему магазину", "danger")
             return redirect(url_for("dashboard"))
 
@@ -290,7 +306,14 @@ def create_app() -> Flask:
     @app.route("/api/store/<store_number>")
     @login_required
     def api_store(store_number):
-        if session.get("role") != "admin" and session.get("store_number") != store_number:
+        role = session.get("role")
+        if role == "admin":
+            pass
+        elif role == "center_manager":
+            cid = session.get("center_id")
+            if database.get_center_for_store(store_number) != cid:
+                return jsonify({"error": "Нет доступа"}), 403
+        elif session.get("store_number") != store_number:
             return jsonify({"error": "Нет доступа"}), 403
         filter_status = request.args.get("filter")
         return jsonify(database.get_store_products(store_number, filter_status))
@@ -311,8 +334,12 @@ def create_app() -> Flask:
 
     @app.route("/activity")
     @login_required
-    @admin_required
     def activity():
+        role = session.get("role")
+        if role not in ("admin", "center_manager"):
+            flash("Доступ только для администратора", "danger")
+            return redirect(url_for("dashboard"))
+
         store_filter = request.args.get("store")
         summary = database.get_activity_summary()
         log = database.get_activity_log(200, store_filter)
@@ -330,6 +357,24 @@ def create_app() -> Flask:
         except Exception:
             sales_summary = []
             import_history = []
+
+        # Фильтр данных для директора подразделения — только его центр
+        if role == "center_manager":
+            cid = session.get("center_id")
+            center_stores = set(database.get_stores_in_center(cid)) if cid else set()
+            stores_completion = [s for s in stores_completion if s["store_number"] in center_stores]
+            summary = [s for s in summary if s.get("store_number") in center_stores]
+            log = [l for l in log if l.get("store_number") in center_stores]
+            if isinstance(losses, dict) and "stores" in losses:
+                losses["stores"] = [s for s in losses["stores"] if s.get("store") in center_stores]
+                # Пересчитаем итоги
+                totals = {"expired": 0, "d70": 0, "d50": 0, "total": 0}
+                for s in losses["stores"]:
+                    for k in totals:
+                        totals[k] += s.get(k, 0)
+                losses["totals"] = totals
+            sales_summary = [s for s in sales_summary if s.get("store_number") in center_stores]
+
         return render_template("activity.html",
                                summary=summary, log=log,
                                store_filter=store_filter,
@@ -494,7 +539,12 @@ def create_app() -> Flask:
     @login_required
     @admin_required
     def api_import_centers():
-        """Импорт центров и магазинов из Excel (колонки: Центр, Магазин, Адрес)."""
+        """Импорт центров и магазинов из Excel.
+
+        Поддерживает два формата:
+        1. Колонки: Центр, Магазин, Адрес
+        2. Колонки: Магазин, ТЦ — название центра из имени файла
+        """
         file = request.files.get("file")
         if not file or not file.filename.endswith((".xlsx", ".xls")):
             return jsonify({"error": "Загрузите файл .xlsx"}), 400
@@ -506,40 +556,70 @@ def create_app() -> Flask:
 
         try:
             import openpyxl
+            import re
             wb = openpyxl.load_workbook(tmp_path, read_only=True)
             ws = wb.active
 
-            headers = {}
-            first_row = list(ws.iter_rows(min_row=1, max_row=1, values_only=False))[0]
-            for idx, cell in enumerate(first_row):
-                val = (str(cell.value or "")).strip().lower()
-                if val in ("центр", "center"):
-                    headers["center"] = idx
-                elif val in ("магазин", "store", "номер", "номер магазина"):
-                    headers["store"] = idx
-                elif val in ("адрес", "address"):
-                    headers["address"] = idx
+            # Ищем строку-заголовок (в первых 5 строках)
+            all_rows = list(ws.iter_rows(values_only=True))
+            wb.close()
 
-            if "center" not in headers or "store" not in headers:
-                wb.close()
-                return jsonify({"error": "Нужны колонки: Центр, Магазин (и опционально Адрес)"}), 400
+            header_idx = None
+            headers = {}
+            for ridx, row in enumerate(all_rows[:5]):
+                for cidx, cell in enumerate(row):
+                    val = str(cell or "").strip().lower()
+                    if val in ("центр", "center"):
+                        headers["center"] = cidx
+                    elif val in ("магазин", "store", "номер", "номер магазина"):
+                        headers["store"] = cidx
+                    elif val in ("адрес", "address", "тц"):
+                        headers["address"] = cidx
+                if "store" in headers:
+                    header_idx = ridx
+                    break
+
+            if header_idx is None or "store" not in headers:
+                return jsonify({"error": "Нужна колонка «Магазин»"}), 400
+
+            # Если нет колонки «Центр», извлекаем название из имени файла
+            center_from_filename = ""
+            if "center" not in headers:
+                fname = os.path.splitext(file.filename)[0]
+                # Ищем "Центр N" или "Центр Name" в имени файла
+                m = re.search(r'[Цц]ентр\s*(.+)', fname)
+                if m:
+                    center_from_filename = "Центр " + m.group(1).strip().rstrip("_. ")
+                else:
+                    center_from_filename = fname.strip()
 
             rows = []
-            for row in ws.iter_rows(min_row=2, values_only=True):
-                center_val = row[headers["center"]] if headers["center"] < len(row) else None
-                store_val = row[headers["store"]] if headers["store"] < len(row) else None
-                addr_idx = headers.get("address", 999)
-                address_val = row[addr_idx] if addr_idx < len(row) else ""
+            for row in all_rows[header_idx + 1:]:
+                store_idx = headers["store"]
+                if store_idx >= len(row) or not row[store_idx]:
+                    continue
 
-                if center_val and store_val:
-                    store_str = str(int(store_val) if isinstance(store_val, float) else store_val).strip()
+                store_val = row[store_idx]
+                store_str = str(int(store_val) if isinstance(store_val, float) else store_val).strip()
+                if not store_str or not any(c.isdigit() for c in store_str):
+                    continue
+
+                # Центр: из колонки или из имени файла
+                if "center" in headers and headers["center"] < len(row) and row[headers["center"]]:
+                    center_name = str(row[headers["center"]]).strip()
+                else:
+                    center_name = center_from_filename
+
+                # Адрес
+                addr_idx = headers.get("address", 999)
+                address_val = row[addr_idx] if addr_idx < len(row) and row[addr_idx] else ""
+
+                if center_name:
                     rows.append({
-                        "center": str(center_val).strip(),
+                        "center": center_name,
                         "store": store_str,
                         "address": str(address_val or "").strip(),
                     })
-
-            wb.close()
 
             if not rows:
                 return jsonify({"error": "Нет данных для импорта"}), 400
@@ -565,6 +645,20 @@ def create_app() -> Flask:
             return jsonify({"error": "Укажите магазин"}), 400
         database.remove_store(store_number)
         database.log_activity("admin", "remove_store", f"Магазин {store_number}")
+        return jsonify({"ok": True})
+
+    @app.route("/api/store/set-role", methods=["POST"])
+    @login_required
+    @admin_required
+    def api_set_store_role():
+        data = request.get_json() or request.form
+        store_number = (data.get("store_number") or "").strip()
+        role = (data.get("role") or "").strip()
+        if not store_number or role not in ("director", "center_manager"):
+            return jsonify({"error": "Укажите магазин и роль"}), 400
+        database.update_store_role(store_number, role)
+        label = "Директор подразделения" if role == "center_manager" else "Директор магазина"
+        database.log_activity("admin", "set_role", f"{store_number} → {label}")
         return jsonify({"ok": True})
 
     @app.route("/api/store/update-code", methods=["POST"])

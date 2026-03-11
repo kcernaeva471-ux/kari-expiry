@@ -19,20 +19,10 @@
 
         <form method="POST">
             <div class="mb-3">
-                <label class="form-label small fw-bold text-muted">Магазин</label>
-                <select name="store_number" class="form-select" required>
-                    <option value="">Выберите магазин...</option>
-                    {% if stores_grouped %}
-                        {% for group in stores_grouped %}
-                        <optgroup label="{{ group.name }}">
-                            {% for s in group.stores %}
-                            <option value="{{ s }}">{{ s }}</option>
-                            {% endfor %}
-                        </optgroup>
-                        {% endfor %}
-                    {% endif %}
-                    <option value="admin">Администратор</option>
-                </select>
+                <label class="form-label small fw-bold text-muted">Номер магазина</label>
+                <input type="text" name="store_number" class="form-control"
+                       placeholder="Введите номер магазина" inputmode="numeric" required
+                       autocomplete="off">
             </div>
             <div class="mb-4">
                 <label class="form-label small fw-bold text-muted">Код доступа</label>

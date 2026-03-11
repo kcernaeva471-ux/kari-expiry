@@ -4,8 +4,17 @@
 
 <div class="page-header d-flex justify-content-between align-items-center">
     <h5 class="mb-0">Управление центрами</h5>
-    <button class="btn btn-sm btn-kari" onclick="showAddCenter()">+ Центр</button>
+    <div class="d-flex gap-1">
+        <button class="btn btn-sm btn-outline-success" onclick="document.getElementById('center-file').click()">
+            Загрузить из Excel
+        </button>
+        <button class="btn btn-sm btn-kari" onclick="showAddCenter()">+ Центр</button>
+    </div>
 </div>
+
+<!-- Скрытый input для загрузки файла центров -->
+<input type="file" id="center-file" accept=".xlsx,.xls" style="display:none"
+       onchange="importCentersFile(this)">
 
 <!-- Форма добавления центра -->
 <div id="add-center-form" class="card mb-3" style="display:none;">
@@ -61,8 +70,11 @@
                             <code class="small">{{ s.access_code }}</code>
                         </td>
                         <td>
-                            <span class="badge {{ 'bg-primary' if s.role == 'center_manager' else 'bg-secondary' }}">
-                                {{ s.role }}
+                            <span class="badge {{ 'bg-primary' if s.role == 'center_manager' else 'bg-secondary' }}"
+                                  style="cursor:pointer"
+                                  onclick="toggleRole('{{ s.store_number }}', '{{ s.role }}')"
+                                  title="Нажмите для смены роли">
+                                {{ 'ДП' if s.role == 'center_manager' else 'директор' }}
                             </span>
                         </td>
                         <td class="text-end">
@@ -166,6 +178,34 @@ function removeStore(storeNumber, centerId) {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({store_number: storeNumber})
+    }).then(r => r.json()).then(d => {
+        if (d.ok) location.reload();
+        else alert(d.error || 'Ошибка');
+    });
+}
+
+function importCentersFile(input) {
+    if (!input.files.length) return;
+    const fd = new FormData();
+    fd.append('file', input.files[0]);
+    fetch('/api/center/import', {method: 'POST', body: fd})
+        .then(r => r.json()).then(d => {
+            if (d.ok) {
+                alert(`Импорт: ${d.centers_created} центров, ${d.stores_added} магазинов`);
+                location.reload();
+            } else alert(d.error || 'Ошибка');
+        });
+    input.value = '';
+}
+
+function toggleRole(storeNumber, currentRole) {
+    const newRole = currentRole === 'center_manager' ? 'director' : 'center_manager';
+    const label = newRole === 'center_manager' ? 'Директор подразделения' : 'Директор магазина';
+    if (!confirm(`Сменить роль магазина ${storeNumber} на «${label}»?`)) return;
+    fetch('/api/store/set-role', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({store_number: storeNumber, role: newRole})
     }).then(r => r.json()).then(d => {
         if (d.ok) location.reload();
         else alert(d.error || 'Ошибка');

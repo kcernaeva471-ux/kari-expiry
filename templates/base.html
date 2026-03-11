@@ -30,6 +30,9 @@
                     <a href="/centers" class="nav-link-kari">Центры</a>
                     <a href="/upload" class="nav-link-kari">Импорт</a>
                     <a href="/codes" class="nav-link-kari">Коды</a>
+                {% elif session.get('role') == 'center_manager' %}
+                    <span class="badge-role">ДП</span>
+                    <a href="/activity" class="nav-link-kari">Контроль</a>
                 {% else %}
                     <span class="badge-role">{{ session.get('store_number') }}</span>
                 {% endif %}
