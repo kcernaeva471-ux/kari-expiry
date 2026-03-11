@@ -473,9 +473,10 @@ def create_app() -> Flask:
     @admin_required
     def centers():
         center_list = database.get_centers()
-        # Для каждого центра загружаем магазины
         for c in center_list:
-            c["stores"] = database.get_center_stores(c["id"])
+            stores = database.get_center_stores(c["id"])
+            c["stores"] = stores
+            c["manager"] = next((s for s in stores if s["role"] == "center_manager"), None)
         return render_template("centers.html", centers=center_list)
 
     @app.route("/api/center/add", methods=["POST"])
@@ -647,18 +648,32 @@ def create_app() -> Flask:
         database.log_activity("admin", "remove_store", f"Магазин {store_number}")
         return jsonify({"ok": True})
 
-    @app.route("/api/store/set-role", methods=["POST"])
+    @app.route("/api/center/set-manager", methods=["POST"])
     @login_required
     @admin_required
-    def api_set_store_role():
+    def api_set_center_manager():
         data = request.get_json() or request.form
-        store_number = (data.get("store_number") or "").strip()
-        role = (data.get("role") or "").strip()
-        if not store_number or role not in ("director", "center_manager"):
-            return jsonify({"error": "Укажите магазин и роль"}), 400
-        database.update_store_role(store_number, role)
-        label = "Директор подразделения" if role == "center_manager" else "Директор магазина"
-        database.log_activity("admin", "set_role", f"{store_number} → {label}")
+        center_id = data.get("center_id")
+        manager_name = (data.get("manager_name") or "").strip()
+        phone = (data.get("phone") or "").strip()
+        access_code = (data.get("access_code") or "").strip()
+        if not center_id or not manager_name or not phone or not access_code:
+            return jsonify({"error": "Заполните ФИО, телефон и код доступа"}), 400
+        # ДП входит по номеру телефона — phone используется как store_number (логин)
+        database.set_center_manager(int(center_id), phone, manager_name, access_code)
+        database.log_activity("admin", "set_manager", f"ДП {manager_name} (тел: {phone}) → центр #{center_id}")
+        return jsonify({"ok": True})
+
+    @app.route("/api/center/remove-manager", methods=["POST"])
+    @login_required
+    @admin_required
+    def api_remove_center_manager():
+        data = request.get_json() or request.form
+        center_id = data.get("center_id")
+        if not center_id:
+            return jsonify({"error": "Укажите центр"}), 400
+        database.remove_center_manager(int(center_id))
+        database.log_activity("admin", "remove_manager", f"Убран ДП центра #{center_id}")
         return jsonify({"ok": True})
 
     @app.route("/api/store/update-code", methods=["POST"])

@@ -47,6 +47,32 @@
         </div>
     </div>
     <div class="card-body p-2">
+        <!-- Директор подразделения -->
+        <div class="mb-2 p-2 rounded" style="background: #f8f0f5;">
+            {% if c.manager %}
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="badge bg-primary">ДП</span>
+                    <strong class="ms-1">{{ c.manager.manager_name }}</strong>
+                    <br><code class="small">тел: {{ c.manager.store_number }}, код: {{ c.manager.access_code }}</code>
+                </div>
+                <button class="btn btn-sm btn-outline-danger py-0 px-1"
+                        onclick="removeManager({{ c.id }})" title="Убрать ДП">&times;</button>
+            </div>
+            {% else %}
+            <div class="input-group input-group-sm">
+                <span class="input-group-text">ДП</span>
+                <input type="text" class="form-control" id="manager-name-{{ c.id }}"
+                       placeholder="ФИО" maxlength="50">
+                <input type="tel" class="form-control" id="manager-phone-{{ c.id }}"
+                       placeholder="Телефон (логин)" maxlength="15" style="max-width:140px">
+                <input type="text" class="form-control" id="manager-code-{{ c.id }}"
+                       placeholder="Код" inputmode="numeric" maxlength="10" style="max-width:80px">
+                <button class="btn btn-primary" onclick="addManager({{ c.id }})">Назначить</button>
+            </div>
+            {% endif %}
+        </div>
+
         <!-- Магазины центра -->
         <div class="table-responsive">
             <table class="table table-sm table-hover mb-2">
@@ -54,12 +80,12 @@
                     <tr>
                         <th>Магазин</th>
                         <th>Код доступа</th>
-                        <th>Роль</th>
                         <th style="width:80px"></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for s in c.stores %}
+                    {% if s.role != 'center_manager' %}
                     <tr>
                         <td>
                             <a href="/store/{{ s.store_number }}" class="store-link fw-bold">
@@ -69,14 +95,6 @@
                         <td>
                             <code class="small">{{ s.access_code }}</code>
                         </td>
-                        <td>
-                            <span class="badge {{ 'bg-primary' if s.role == 'center_manager' else 'bg-secondary' }}"
-                                  style="cursor:pointer"
-                                  onclick="toggleRole('{{ s.store_number }}', '{{ s.role }}')"
-                                  title="Нажмите для смены роли">
-                                {{ 'ДП' if s.role == 'center_manager' else 'директор' }}
-                            </span>
-                        </td>
                         <td class="text-end">
                             <button class="btn btn-sm btn-outline-danger py-0 px-1"
                                     onclick="removeStore('{{ s.store_number }}', {{ c.id }})"
@@ -85,9 +103,10 @@
                             </button>
                         </td>
                     </tr>
+                    {% endif %}
                     {% endfor %}
                     {% if not c.stores %}
-                    <tr><td colspan="4" class="text-muted text-center small">Нет магазинов</td></tr>
+                    <tr><td colspan="3" class="text-muted text-center small">Нет магазинов</td></tr>
                     {% endif %}
                 </tbody>
             </table>
@@ -200,14 +219,29 @@ function importCentersFile(input) {
     input.value = '';
 }
 
-function toggleRole(storeNumber, currentRole) {
-    const newRole = currentRole === 'center_manager' ? 'director' : 'center_manager';
-    const label = newRole === 'center_manager' ? 'Директор подразделения' : 'Директор магазина';
-    if (!confirm(`Сменить роль магазина ${storeNumber} на «${label}»?`)) return;
-    fetch('/api/store/set-role', {
+function addManager(centerId) {
+    const name = document.getElementById('manager-name-' + centerId).value.trim();
+    const phone = document.getElementById('manager-phone-' + centerId).value.trim();
+    const code = document.getElementById('manager-code-' + centerId).value.trim();
+    if (!name) return alert('Укажите ФИО');
+    if (!phone) return alert('Укажите телефон (логин)');
+    if (!code) return alert('Укажите код доступа');
+    fetch('/api/center/set-manager', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({store_number: storeNumber, role: newRole})
+        body: JSON.stringify({center_id: centerId, manager_name: name, phone: phone, access_code: code})
+    }).then(r => r.json()).then(d => {
+        if (d.ok) location.reload();
+        else alert(d.error || 'Ошибка');
+    });
+}
+
+function removeManager(centerId) {
+    if (!confirm('Убрать директора подразделения?')) return;
+    fetch('/api/center/remove-manager', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({center_id: centerId})
     }).then(r => r.json()).then(d => {
         if (d.ok) location.reload();
         else alert(d.error || 'Ошибка');

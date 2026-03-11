@@ -130,6 +130,8 @@ def init_db():
         db.execute("ALTER TABLE store_access ADD COLUMN center_id INTEGER REFERENCES centers(id)")
     if "address" not in cols:
         db.execute("ALTER TABLE store_access ADD COLUMN address TEXT DEFAULT ''")
+    if "manager_name" not in cols:
+        db.execute("ALTER TABLE store_access ADD COLUMN manager_name TEXT DEFAULT ''")
 
     db.commit()
 
@@ -450,11 +452,12 @@ def get_all_stores_summary() -> list[dict]:
     today = date.today()
     result = []
 
-    # Берём магазины из БД с привязкой к центрам
+    # Берём магазины из БД с привязкой к центрам (без admin и ДП)
     stores_rows = db.execute("""
         SELECT sa.store_number, sa.center_id, COALESCE(c.name, '') as center_name
         FROM store_access sa
         LEFT JOIN centers c ON c.id = sa.center_id
+        WHERE sa.store_number != 'admin' AND sa.role != 'center_manager'
         ORDER BY sa.center_id, sa.store_number
     """).fetchall()
 
@@ -645,11 +648,11 @@ def get_activity_summary() -> list[dict]:
 # ── Центры ────────────────────────────────────────────────────────────────
 
 def get_centers() -> list[dict]:
-    """Список центров с количеством магазинов."""
+    """Список центров с количеством магазинов (без ДП)."""
     db = get_db()
     rows = db.execute("""
         SELECT c.id, c.name,
-               COUNT(sa.store_number) as store_count
+               COUNT(CASE WHEN sa.role != 'center_manager' THEN 1 END) as store_count
         FROM centers c
         LEFT JOIN store_access sa ON sa.center_id = c.id
         GROUP BY c.id
@@ -795,9 +798,9 @@ def import_centers_from_rows(rows: list[dict]) -> dict:
             )
         stores_added += 1
 
-    # Удаляем магазины, которых нет в файле (закрытые)
+    # Удаляем магазины, которых нет в файле (закрытые), но не трогаем admin и center_manager
     all_db_stores = db.execute(
-        "SELECT store_number FROM store_access WHERE store_number != 'admin'"
+        "SELECT store_number FROM store_access WHERE store_number != 'admin' AND role != 'center_manager'"
     ).fetchall()
     stores_removed = 0
     for s in all_db_stores:
@@ -827,13 +830,39 @@ def get_center_for_store(store_number: str):
 
 
 def get_stores_in_center(center_id: int) -> list[str]:
-    """Список номеров магазинов в центре."""
+    """Список номеров магазинов в центре (без ДП)."""
     db = get_db()
     rows = db.execute(
-        "SELECT store_number FROM store_access WHERE center_id = ? ORDER BY store_number",
+        "SELECT store_number FROM store_access WHERE center_id = ? AND role != 'center_manager' ORDER BY store_number",
         (center_id,),
     ).fetchall()
     return [r["store_number"] for r in rows]
+
+
+def set_center_manager(center_id: int, login_id: str, manager_name: str, access_code: str):
+    """Создаёт/обновляет ДП для центра. Входит по номеру телефона."""
+    db = get_db()
+    # Удаляем старого ДП этого центра если есть
+    db.execute(
+        "DELETE FROM store_access WHERE center_id = ? AND role = 'center_manager'",
+        (center_id,),
+    )
+    db.execute(
+        """INSERT INTO store_access (store_number, access_code, role, center_id, manager_name)
+           VALUES (?, ?, 'center_manager', ?, ?)""",
+        (login_id, access_code, center_id, manager_name),
+    )
+    db.commit()
+
+
+def remove_center_manager(center_id: int):
+    """Убирает ДП из центра."""
+    db = get_db()
+    db.execute(
+        "DELETE FROM store_access WHERE center_id = ? AND role = 'center_manager'",
+        (center_id,),
+    )
+    db.commit()
 
 
 def update_store_code(store_number: str, new_code: str):
