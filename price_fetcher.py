@@ -72,6 +72,8 @@ def fetch_all_prices():
                 if price and price > 0:
                     database.save_price(art, price)
                 else:
+                    # Сохраняем 0 чтобы не загружать повторно
+                    database.save_price(art, 0)
                     _fetch_status["errors"] += 1
                 _fetch_status["done"] += 1
                 time.sleep(0.3)

@@ -1085,14 +1085,13 @@ def save_price(article: str, price: int):
 
 
 def get_unfetched_articles() -> list[str]:
-    """Артикулы без цены или с ценой старше 7 дней."""
+    """Артикулы без цены (ещё не проверенные)."""
     db = get_db()
     rows = db.execute("""
         SELECT DISTINCT sp.article
         FROM store_products sp
         LEFT JOIN product_prices pp ON sp.article = pp.article
         WHERE pp.article IS NULL
-           OR pp.fetched_at < datetime('now', '-7 days')
     """).fetchall()
     return [r[0] for r in rows]
 
@@ -1101,7 +1100,9 @@ def get_prices_count() -> dict:
     db = get_db()
     total = db.execute("SELECT COUNT(DISTINCT article) FROM store_products").fetchone()[0]
     fetched = db.execute("SELECT COUNT(*) FROM product_prices WHERE price > 0").fetchone()[0]
-    return {"total": total, "fetched": fetched}
+    checked = db.execute("SELECT COUNT(*) FROM product_prices").fetchone()[0]
+    not_found = db.execute("SELECT COUNT(*) FROM product_prices WHERE price = 0").fetchone()[0]
+    return {"total": total, "fetched": fetched, "checked": checked, "not_found": not_found}
 
 
 def get_losses_report() -> dict:

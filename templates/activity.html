@@ -112,7 +112,7 @@
 <div class="d-flex justify-content-between align-items-center mb-2">
     <p class="section-label mb-0">РОЗНИЧНАЯ СТОИМОСТЬ</p>
     <div class="d-flex align-items-center gap-2">
-        <small class="text-muted">Цены: {{ prices_count.fetched }}/{{ prices_count.total }}</small>
+        <small class="text-muted">Цены: {{ prices_count.fetched }}/{{ prices_count.total }}{% if prices_count.get('not_found', 0) > 0 %} ({{ prices_count.not_found }} не найдено){% endif %}</small>
         <button class="btn btn-sm" style="border: 1px solid #991E66; color: #991E66;" id="btn-fetch-prices" onclick="fetchPrices()">
             Обновить цены
         </button>
