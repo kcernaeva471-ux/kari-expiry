@@ -133,6 +133,11 @@ def init_db():
     if "manager_name" not in cols:
         db.execute("ALTER TABLE store_access ADD COLUMN manager_name TEXT DEFAULT ''")
 
+    # Миграция store_products
+    sp_cols = [r[1] for r in db.execute("PRAGMA table_info(store_products)").fetchall()]
+    if "tester" not in sp_cols:
+        db.execute("ALTER TABLE store_products ADD COLUMN tester INTEGER DEFAULT 0")
+
     db.commit()
 
 
@@ -348,6 +353,16 @@ def mark_no_expiry(product_id: int, value: bool = True):
     db.commit()
 
 
+def set_tester(product_id: int, value: bool = True):
+    """Помечает товар как тестер (выставлен для покупателей)."""
+    db = get_db()
+    db.execute(
+        "UPDATE store_products SET tester = ? WHERE id = ?",
+        (1 if value else 0, product_id),
+    )
+    db.commit()
+
+
 # ── Запросы ────────────────────────────────────────────────────────────────
 
 def classify_days(days_left: int) -> str:
@@ -538,6 +553,11 @@ def get_store_stats(store_number: str) -> dict:
         (store_number,),
     ).fetchone()["c"]
 
+    testers = db.execute(
+        "SELECT COUNT(*) as c FROM store_products WHERE store_number = ? AND tester = 1",
+        (store_number,),
+    ).fetchone()["c"]
+
     with_batches = db.execute(
         """SELECT COUNT(DISTINCT sp.id) as c FROM store_products sp
            JOIN batches b ON b.product_id = sp.id WHERE sp.store_number = ?""",
@@ -552,8 +572,7 @@ def get_store_stats(store_number: str) -> dict:
         (store_number,),
     ).fetchall()
 
-    # Считаем: товар попадает в категорию, если ЛЮБАЯ партия подходит
-    product_cats = {}  # product_id -> set of categories
+    product_cats = {}
     for br in batch_rows:
         exp = date.fromisoformat(br["expiry_date"])
         days = (exp - today).days
@@ -569,6 +588,7 @@ def get_store_stats(store_number: str) -> dict:
         "total": total,
         "not_filled": total - no_expiry - with_batches,
         "no_expiry": no_expiry,
+        "testers": testers,
         "filled": with_batches,
         **counts,
     }

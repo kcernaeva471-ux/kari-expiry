@@ -100,6 +100,9 @@
                 {% else %}
                     <span class="badge bg-secondary">Пусто</span>
                 {% endif %}
+                {% if p.tester %}
+                    <span class="badge" style="background: #e91e90; color: #fff;">Тестер</span>
+                {% endif %}
                 {% if p.worst_days is not none and p.worst_days != None and p.worst_days < 99999 %}
                     <div style="font-size: 0.7rem; color: {{ styles.get(p.status, {}).get('text', '#666') }};">
                         {{ p.worst_days }} дн.
@@ -116,6 +119,13 @@
                     <i>Товар отмечен как «Без срока годности»</i>
                     <button class="btn btn-sm btn-outline-secondary ms-2"
                             onclick="setNoExpiry({{ p.id }}, false)">Отменить</button>
+                    {% if p.tester %}
+                    <button class="btn btn-sm btn-outline-secondary ms-1"
+                            onclick="setTester({{ p.id }}, false)">Убрать тестер</button>
+                    {% else %}
+                    <button class="btn btn-sm ms-1" style="border-color: #e91e90; color: #e91e90;"
+                            onclick="setTester({{ p.id }}, true)">Выставить тестер</button>
+                    {% endif %}
                 </div>
             {% else %}
                 <!-- Существующие партии -->
@@ -171,11 +181,22 @@
                             </button>
                         </div>
                     </div>
-                    <div class="mt-1">
+                    <div class="mt-1 d-flex gap-1 flex-wrap">
                         <button class="btn btn-sm btn-outline-info"
                                 onclick="setNoExpiry({{ p.id }}, true)">
                             Нет срока годности
                         </button>
+                        {% if p.tester %}
+                        <button class="btn btn-sm btn-outline-secondary"
+                                onclick="setTester({{ p.id }}, false)">
+                            Убрать тестер
+                        </button>
+                        {% else %}
+                        <button class="btn btn-sm" style="border-color: #e91e90; color: #e91e90;"
+                                onclick="setTester({{ p.id }}, true)">
+                            Выставить тестер
+                        </button>
+                        {% endif %}
                     </div>
                 </div>
             {% endif %}
@@ -302,6 +323,13 @@ function setNoExpiry(productId, value) {
     if (!confirm(msg)) return;
     var btn = event ? event.target : null;
     apiFetch('/api/product/no-expiry', { product_id: productId, value: value }, btn);
+}
+
+function setTester(productId, value) {
+    var msg = value ? 'Выставить товар как тестер?' : 'Убрать отметку тестера?';
+    if (!confirm(msg)) return;
+    var btn = event ? event.target : null;
+    apiFetch('/api/product/tester', { product_id: productId, value: value }, btn);
 }
 </script>
 

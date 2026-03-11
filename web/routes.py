@@ -296,6 +296,37 @@ def create_app() -> Flask:
         database.log_activity(store, action, f"Товар #{product_id}")
         return jsonify({"ok": True})
 
+    @app.route("/api/product/tester", methods=["POST"])
+    @login_required
+    def api_tester():
+        data = request.get_json() or request.form
+        product_id = data.get("product_id")
+        value = data.get("value", True)
+
+        if not product_id:
+            return jsonify({"error": "Не указан товар"}), 400
+        try:
+            product_id = int(product_id)
+        except (ValueError, TypeError):
+            return jsonify({"error": "Неверные данные"}), 400
+
+        if isinstance(value, str):
+            value = value.lower() in ("true", "1", "yes")
+
+        product = database.get_product_by_id(product_id)
+        if not product:
+            return jsonify({"error": "Товар не найден"}), 404
+
+        if session.get("role") != "admin":
+            if product["store_number"] != session.get("store_number"):
+                return jsonify({"error": "Нет доступа"}), 403
+
+        database.set_tester(product_id, value)
+        store = session.get("store_number", "?")
+        action = "set_tester" if value else "unset_tester"
+        database.log_activity(store, action, f"Товар #{product_id}")
+        return jsonify({"ok": True})
+
     # ── API ───────────────────────────────────────────────────────────────
 
     @app.route("/api/stores")
