@@ -189,6 +189,8 @@ def create_app() -> Flask:
         stats = database.get_store_stats(store_number)
         products = database.get_store_products(store_number, filter_status)
 
+        today_photos = database.get_today_promotion_photos(store_number)
+
         return render_template(
             "store_detail.html",
             store_number=store_number,
@@ -196,6 +198,7 @@ def create_app() -> Flask:
             products=products,
             current_filter=filter_status,
             styles=config.CATEGORY_STYLES,
+            today_photos=today_photos,
         )
 
     # ── API: Добавить партию ──────────────────────────────────────────────
@@ -406,6 +409,8 @@ def create_app() -> Flask:
                 losses["totals"] = totals
             sales_summary = [s for s in sales_summary if s.get("store_number") in center_stores]
 
+        promo_status = database.get_all_promo_photo_status()
+
         return render_template("activity.html",
                                summary=summary, log=log,
                                store_filter=store_filter,
@@ -414,7 +419,8 @@ def create_app() -> Flask:
                                prices_count=prices_count,
                                fetch_status=fetch_status,
                                sales_summary=sales_summary,
-                               import_history=import_history)
+                               import_history=import_history,
+                               promo_status=promo_status)
 
     @app.route("/api/fetch-prices", methods=["POST"])
     @login_required
@@ -806,5 +812,60 @@ def create_app() -> Flask:
         database.log_activity("admin", "setup_managers", f"Назначено {added} ДП")
         flash(f"Назначено {added} директоров подразделений (код: 1234)", "success")
         return redirect(url_for("centers"))
+
+    # ── API: Фото акционных зон ──────────────────────────────────────────
+
+    @app.route("/api/promo-photo/upload", methods=["POST"])
+    @login_required
+    def api_upload_promo_photo():
+        """Загрузка фото акционной зоны магазина."""
+        import uuid
+        role = session.get("role")
+        store_number = session.get("store_number")
+
+        if role in ("admin", "center_manager"):
+            store_number = request.form.get("store_number", store_number)
+
+        if not store_number or store_number == "admin":
+            return jsonify({"error": "Укажите номер магазина"}), 400
+
+        photo = request.files.get("photo")
+        if not photo or not photo.filename:
+            return jsonify({"error": "Выберите фото"}), 400
+
+        ext = os.path.splitext(photo.filename)[1].lower()
+        if ext not in config.ALLOWED_PHOTO_EXTENSIONS:
+            return jsonify({"error": f"Формат не поддерживается. Разрешены: {', '.join(config.ALLOWED_PHOTO_EXTENSIONS)}"}), 400
+
+        os.makedirs(config.PHOTOS_DIR, exist_ok=True)
+
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        unique = uuid.uuid4().hex[:8]
+        filename = f"{store_number}_{today_str}_{unique}{ext}"
+        filepath = os.path.join(config.PHOTOS_DIR, filename)
+
+        photo.save(filepath)
+        photo_id = database.save_promotion_photo(store_number, filename, photo.filename)
+        database.log_activity(store_number, "promo_photo", f"Загружено фото акции: {photo.filename}")
+
+        return jsonify({"ok": True, "photo_id": photo_id, "filename": filename})
+
+    @app.route("/photos/<filename>")
+    @login_required
+    def serve_photo(filename):
+        """Отдача фото акционных зон."""
+        from flask import send_from_directory
+        return send_from_directory(config.PHOTOS_DIR, filename)
+
+    @app.route("/api/store/<store_number>/photos")
+    @login_required
+    def api_store_photos(store_number):
+        """Список фото акционной зоны магазина."""
+        role = session.get("role")
+        if role not in ("admin", "center_manager"):
+            if session.get("store_number") != store_number:
+                return jsonify({"error": "Нет доступа"}), 403
+        photos = database.get_store_promo_photos(store_number)
+        return jsonify(photos)
 
     return app

@@ -122,6 +122,17 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_sc_store ON stock_changes(store_number);
         CREATE INDEX IF NOT EXISTS idx_sc_created ON stock_changes(created_at);
         CREATE INDEX IF NOT EXISTS idx_snapshots_time ON stock_snapshots(imported_at);
+
+        -- Фото акционных зон
+        CREATE TABLE IF NOT EXISTS promotion_photos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            store_number TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            original_name TEXT DEFAULT '',
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_promo_store ON promotion_photos(store_number);
+        CREATE INDEX IF NOT EXISTS idx_promo_date ON promotion_photos(uploaded_at);
     """)
 
     # Миграции для существующих БД
@@ -137,6 +148,11 @@ def init_db():
     sp_cols = [r[1] for r in db.execute("PRAGMA table_info(store_products)").fetchall()]
     if "tester" not in sp_cols:
         db.execute("ALTER TABLE store_products ADD COLUMN tester INTEGER DEFAULT 0")
+
+    # Миграция product_prices — наличие онлайн
+    pp_cols = [r[1] for r in db.execute("PRAGMA table_info(product_prices)").fetchall()]
+    if "online_available" not in pp_cols:
+        db.execute("ALTER TABLE product_prices ADD COLUMN online_available INTEGER DEFAULT NULL")
 
     db.commit()
 
@@ -1174,3 +1190,98 @@ def get_losses_report() -> dict:
 
     store_list = sorted(stores.values(), key=lambda x: x["total"], reverse=True)
     return {"stores": store_list, "totals": totals}
+
+
+# ── Фото акционных зон ──────────────────────────────────────────────────
+
+
+def save_promotion_photo(store_number: str, filename: str, original_name: str = "") -> int:
+    """Сохраняет запись о фото акции. Возвращает id."""
+    db = get_db()
+    cursor = db.execute(
+        """INSERT INTO promotion_photos (store_number, filename, original_name)
+           VALUES (?, ?, ?)""",
+        (store_number, filename, original_name),
+    )
+    db.commit()
+    return cursor.lastrowid
+
+
+def get_today_promotion_photos(store_number: str, tz_offset_hours: int = 3) -> list:
+    """Фото магазина, загруженные сегодня (московское время)."""
+    db = get_db()
+    rows = db.execute("""
+        SELECT * FROM promotion_photos
+        WHERE store_number = ?
+          AND datetime(uploaded_at, '+' || ? || ' hours') >= date('now', '+' || ? || ' hours')
+        ORDER BY uploaded_at DESC
+    """, (store_number, tz_offset_hours, tz_offset_hours)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_all_promo_photo_status(tz_offset_hours: int = 3) -> dict:
+    """Статус фото за сегодня для всех магазинов.
+    Возвращает {store_number: {'uploaded_today': True, 'photo_count': N, 'last_photo': ts}}"""
+    db = get_db()
+    rows = db.execute("""
+        SELECT store_number, COUNT(*) as cnt, MAX(uploaded_at) as last_upload
+        FROM promotion_photos
+        WHERE datetime(uploaded_at, '+' || ? || ' hours') >= date('now', '+' || ? || ' hours')
+        GROUP BY store_number
+    """, (tz_offset_hours, tz_offset_hours)).fetchall()
+
+    result = {}
+    for r in rows:
+        result[r["store_number"]] = {
+            "uploaded_today": True,
+            "photo_count": r["cnt"],
+            "last_photo": r["last_upload"],
+        }
+    return result
+
+
+def get_stores_without_promo_photo_today(tz_offset_hours: int = 3) -> list:
+    """Магазины со скидочным товаром, которые не загрузили фото сегодня."""
+    db = get_db()
+    today = date.today()
+    threshold_date = (today + timedelta(days=config.DISCOUNT_THRESHOLDS["discount_50"])).isoformat()
+
+    # Магазины со скидочными товарами (50%/70%/просрочено)
+    rows = db.execute("""
+        SELECT DISTINCT sp.store_number
+        FROM store_products sp
+        JOIN batches b ON b.product_id = sp.id
+        WHERE sp.available > 0 AND sp.no_expiry = 0
+          AND b.expiry_date <= ?
+    """, (threshold_date,)).fetchall()
+    stores_with_discounts = {r["store_number"] for r in rows}
+
+    # Магазины, загрузившие фото сегодня
+    uploaded = db.execute("""
+        SELECT DISTINCT store_number FROM promotion_photos
+        WHERE datetime(uploaded_at, '+' || ? || ' hours') >= date('now', '+' || ? || ' hours')
+    """, (tz_offset_hours, tz_offset_hours)).fetchall()
+    uploaded_set = {r["store_number"] for r in uploaded}
+
+    return sorted(stores_with_discounts - uploaded_set)
+
+
+def get_store_promo_photos(store_number: str, limit: int = 30) -> list:
+    """Недавние фото акционной зоны магазина."""
+    db = get_db()
+    rows = db.execute("""
+        SELECT * FROM promotion_photos
+        WHERE store_number = ?
+        ORDER BY uploaded_at DESC LIMIT ?
+    """, (store_number, limit)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def save_online_availability(article: str, available: bool):
+    """Обновляет наличие товара онлайн на kari.com."""
+    db = get_db()
+    db.execute(
+        "UPDATE product_prices SET online_available = ? WHERE article = ?",
+        (1 if available else 0, article),
+    )
+    db.commit()

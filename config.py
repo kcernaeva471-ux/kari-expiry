@@ -55,6 +55,13 @@ STATUS_MAP = {
     "не заполнен": "Не заполнен",
 }
 
+# ── Фото акций ────────────────────────────────────────────────────────────
+PHOTOS_DIR = "/data/photos" if os.path.isdir("/data") else os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "data", "photos"
+)
+ALLOWED_PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png", ".heic", ".webp"}
+MAX_PHOTO_SIZE_MB = 10
+
 # ── Цвета категорий (для веба) ────────────────────────────────────────────
 CATEGORY_STYLES = {
     "ПРОСРОЧЕН": {"bg": "#f8d7da", "text": "#721c24", "badge": "danger"},

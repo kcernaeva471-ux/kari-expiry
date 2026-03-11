@@ -355,10 +355,39 @@ async def trigger_expired_alert(context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Ошибка отправки алерта: {e}")
 
 
+# ── Триггер: напоминание о фото акционной зоны (10:00) ──────────────────
+
+async def trigger_promo_photo_reminder(context: ContextTypes.DEFAULT_TYPE):
+    """Напоминание: магазины со скидочным товаром, которые не загрузили фото."""
+    stores_missing = database.get_stores_without_promo_photo_today(tz_offset_hours=3)
+
+    if not stores_missing:
+        return  # Все загрузили или нет скидочных товаров
+
+    lines = [
+        "📸 Напоминание: фото акционной зоны\n",
+        f"Не загрузили фото сегодня ({len(stores_missing)} маг.):\n",
+    ]
+
+    for store in stores_missing:
+        lines.append(f"  🏪 {store}")
+
+    lines.append(f"\nЗагрузите фото в личном кабинете:")
+    lines.append(f"🔗 {DASHBOARD_URL}")
+
+    text = "\n".join(lines)
+    try:
+        for part in split_message(text):
+            await context.bot.send_message(chat_id=config.CHAT_ID, text=part)
+        logger.info(f"Напоминание о фото отправлено ({len(stores_missing)} маг.)")
+    except Exception as e:
+        logger.error(f"Ошибка отправки напоминания о фото: {e}")
+
+
 # ── Ручная команда для тестирования триггеров ────────────────────────────
 
 async def cmd_trigger(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Тест триггера: /trigger morning|evening|weekly|expired"""
+    """Тест триггера: /trigger morning|evening|weekly|expired|photo"""
     args = context.args
     if not args:
         await update.message.reply_text(
@@ -366,7 +395,8 @@ async def cmd_trigger(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/trigger morning — утренний отчёт\n"
             "/trigger evening — вечернее напоминание\n"
             "/trigger weekly — еженедельный рейтинг\n"
-            "/trigger expired — алерт о просрочке"
+            "/trigger expired — алерт о просрочке\n"
+            "/trigger photo — напоминание о фото акции"
         )
         return
 
@@ -376,6 +406,7 @@ async def cmd_trigger(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "evening": trigger_evening_nudge,
         "weekly": trigger_weekly_rating,
         "expired": trigger_expired_alert,
+        "photo": trigger_promo_photo_reminder,
     }
 
     func = triggers.get(trigger)
@@ -408,6 +439,9 @@ def create_bot_application():
     # Утренний отчёт — 9:00 каждый день
     jq.run_daily(trigger_morning_report, time=dtime(9, 0, tzinfo=tz), name="morning_report")
 
+    # Напоминание о фото акции — 10:00 каждый день
+    jq.run_daily(trigger_promo_photo_reminder, time=dtime(10, 0, tzinfo=tz), name="promo_photo_reminder")
+
     # Алерт о просрочке — 11:00 каждый день
     jq.run_daily(trigger_expired_alert, time=dtime(11, 0, tzinfo=tz), name="expired_alert")
 
@@ -422,6 +456,6 @@ def create_bot_application():
         name="weekly_rating",
     )
 
-    logger.info("Триггеры настроены: 9:00 отчёт, 11:00 алерт, 16:00 напоминание, ПН 10:00 рейтинг")
+    logger.info("Триггеры настроены: 9:00 отчёт, 10:00 фото, 11:00 алерт, 16:00 напоминание, ПН 10:00 рейтинг")
 
     return app

@@ -3,6 +3,7 @@
 Flask — главный поток, бот — фоновый.
 """
 
+import os
 import threading
 import asyncio
 import logging
@@ -63,6 +64,7 @@ def create_flask_app():
     """Создаёт Flask-приложение (для gunicorn)."""
     database.init_db()
     database.setup_store_access()
+    os.makedirs(config.PHOTOS_DIR, exist_ok=True)
     logger.info("База данных инициализирована")
 
     start_bot()

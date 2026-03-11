@@ -19,6 +19,7 @@
                 <th class="text-end d-none d-sm-table-cell">Тестеры</th>
                 <th class="text-end">Остаток</th>
                 <th style="min-width: 60px;">Прогресс</th>
+                <th class="text-center">Фото</th>
             </tr>
         </thead>
         <tbody>
@@ -98,6 +99,18 @@
                             {{ pct }}%
                         </div>
                     </div>
+                </td>
+                <td class="text-center">
+                    {% set ps = promo_status.get(s.store_number, {}) %}
+                    {% if ps.get('uploaded_today') %}
+                        <span style="color: #2e7d32; font-size: 1.1rem; cursor: pointer;"
+                              title="Фото загружено ({{ ps.photo_count }})"
+                              onclick="showPhotos('{{ s.store_number }}')">✓ {{ ps.photo_count }}</span>
+                    {% elif s.not_filled < s.total %}
+                        <span class="text-danger" title="Фото не загружено">✗</span>
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
                 </td>
             </tr>
             {% endif %}
@@ -447,6 +460,8 @@
                     <span class="text-info">Без срока</span>
                 {% elif entry.action == 'undo_no_expiry' %}
                     <span class="text-warning">Вернул срок</span>
+                {% elif entry.action == 'promo_photo' %}
+                    <span style="color: #6a1b9a;">📸 Фото акции</span>
                 {% else %}
                     {{ entry.action }}
                 {% endif %}
@@ -465,6 +480,21 @@
     Пока нет активности
 </div>
 {% endif %}
+
+<!-- Модальное окно для просмотра фото -->
+<div class="modal fade" id="photoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title">📸 Фото акционной зоны — <span id="photoStoreNum"></span></h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="photoModalBody">
+                <div class="text-center text-muted">Загрузка...</div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
 function toggleCenter(headerEl) {
@@ -521,6 +551,36 @@ function pollStatus() {
 {% if fetch_status.running %}
 pollStatus();
 {% endif %}
+
+function showPhotos(storeNumber) {
+    document.getElementById('photoStoreNum').textContent = storeNumber;
+    var body = document.getElementById('photoModalBody');
+    body.innerHTML = '<div class="text-center text-muted">Загрузка...</div>';
+
+    var modal = new bootstrap.Modal(document.getElementById('photoModal'));
+    modal.show();
+
+    fetch('/api/store/' + storeNumber + '/photos')
+        .then(function(r) { return r.json(); })
+        .then(function(photos) {
+            if (!photos.length) {
+                body.innerHTML = '<div class="text-muted">Нет фото</div>';
+                return;
+            }
+            var html = '<div class="row g-2">';
+            photos.forEach(function(p) {
+                var dateStr = (p.uploaded_at || '').slice(0, 16).replace('T', ' ');
+                html += '<div class="col-6 col-md-4">' +
+                    '<a href="/photos/' + p.filename + '" target="_blank">' +
+                    '<img src="/photos/' + p.filename + '" class="w-100 rounded" style="max-height:200px; object-fit:cover;">' +
+                    '</a>' +
+                    '<small class="text-muted d-block">' + dateStr + '</small>' +
+                    '</div>';
+            });
+            html += '</div>';
+            body.innerHTML = html;
+        });
+}
 </script>
 
 {% endblock %}

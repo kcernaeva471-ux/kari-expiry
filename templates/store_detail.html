@@ -66,6 +66,44 @@
     </a>
 </div>
 
+<!-- Фото акционной зоны -->
+{% set has_discounts = stats.get('ПРОСРОЧЕН', 0) > 0 or stats.get('Скидка 70%', 0) > 0 or stats.get('Скидка 50%', 0) > 0 %}
+{% if has_discounts %}
+<div class="card mb-3" style="border-left: 4px solid {% if today_photos %}#198754{% else %}#dc3545{% endif %}; border-radius: var(--radius);">
+    <div class="card-body py-2 px-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+                <b style="font-size: 0.85rem;">📸 Фото акционной зоны</b>
+                {% if today_photos %}
+                    <span class="badge bg-success ms-1">Загружено ({{ today_photos|length }})</span>
+                {% else %}
+                    <span class="badge bg-danger ms-1">Не загружено</span>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if today_photos %}
+        <div class="d-flex gap-2 flex-wrap mb-2">
+            {% for photo in today_photos %}
+            <img src="/photos/{{ photo.filename }}" alt="Акция"
+                 style="width: 70px; height: 70px; object-fit: cover; border-radius: 6px; cursor: pointer;"
+                 onclick="window.open('/photos/{{ photo.filename }}', '_blank')">
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <form id="promo-photo-form" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
+            <input type="file" name="photo" accept="image/*" capture="environment"
+                   class="form-control form-control-sm" id="photo-input" required
+                   style="max-width: 220px; font-size: 0.8rem;">
+            <button type="submit" class="btn btn-sm" style="background: var(--kari-purple); color: #fff;" id="btn-upload-photo">
+                Загрузить
+            </button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
 <!-- Товары -->
 {% if products %}
 <div class="products-list">
@@ -341,6 +379,43 @@ function setTester(productId, value) {
     if (!confirm(msg)) return;
     var btn = event ? event.target : null;
     apiFetch('/api/product/tester', { product_id: productId, value: value }, btn);
+}
+
+// Загрузка фото акционной зоны
+var photoForm = document.getElementById('promo-photo-form');
+if (photoForm) {
+    photoForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var btn = document.getElementById('btn-upload-photo');
+        var input = document.getElementById('photo-input');
+        if (!input.files.length) { alert('Выберите фото'); return; }
+        btn.disabled = true;
+        btn.textContent = 'Загрузка...';
+
+        var formData = new FormData();
+        formData.append('photo', input.files[0]);
+
+        fetch('/api/promo-photo/upload', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.error) {
+                alert(data.error);
+                btn.disabled = false;
+                btn.textContent = 'Загрузить';
+            } else {
+                location.reload();
+            }
+        })
+        .catch(function() {
+            alert('Ошибка загрузки');
+            btn.disabled = false;
+            btn.textContent = 'Загрузить';
+        });
+    });
 }
 </script>
 
