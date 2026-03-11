@@ -28,7 +28,7 @@ ADMIN_CODE = os.environ.get("ADMIN_CODE", "0000")
 TIMEZONE = "Europe/Moscow"
 
 # ── Центры и магазины ─────────────────────────────────────────────────────
-DEFAULT_CENTER = "Центр 1"  # Название центра по умолчанию при миграции
+DEFAULT_CENTER = "Центр 5"  # Все наши магазины — Центр 5
 
 # Список магазинов (fallback, если БД пуста)
 VALID_STORES = [

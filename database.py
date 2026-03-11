@@ -142,19 +142,22 @@ def init_db():
 
 
 def setup_store_access():
-    """Инициализирует магазины и центр по умолчанию."""
+    """Инициализирует магазины и центр по умолчанию (Центр 5)."""
     db = get_db()
 
-    # Создаём центр по умолчанию, если ещё нет ни одного
-    center_count = db.execute("SELECT COUNT(*) FROM centers").fetchone()[0]
-    if center_count == 0:
-        db.execute("INSERT INTO centers (name) VALUES (?)", (config.DEFAULT_CENTER,))
+    # Создаём Центр 5, если ещё нет
+    center_row = db.execute(
+        "SELECT id FROM centers WHERE name = ?", (config.DEFAULT_CENTER,)
+    ).fetchone()
+    if center_row:
+        center_id = center_row["id"]
+    else:
+        cursor = db.execute(
+            "INSERT INTO centers (name) VALUES (?)", (config.DEFAULT_CENTER,)
+        )
+        center_id = cursor.lastrowid
 
-    default_center_id = db.execute(
-        "SELECT id FROM centers ORDER BY id LIMIT 1"
-    ).fetchone()[0]
-
-    # Добавляем магазины из VALID_STORES (обратная совместимость)
+    # Добавляем магазины из VALID_STORES → Центр 5
     for store in config.VALID_STORES:
         db.execute(
             """INSERT INTO store_access (store_number, access_code, role, center_id)
@@ -162,7 +165,7 @@ def setup_store_access():
                ON CONFLICT(store_number) DO UPDATE SET
                    access_code = CASE WHEN access_code = store_number THEN ? ELSE access_code END,
                    center_id = COALESCE(center_id, ?)""",
-            (store, store, default_center_id, store, default_center_id),
+            (store, store, center_id, store, center_id),
         )
     db.commit()
 
