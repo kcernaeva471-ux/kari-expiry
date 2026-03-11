@@ -12,13 +12,13 @@
     <table class="table table-sm align-middle mb-0">
         <thead>
             <tr>
-                <th>Магазин</th>
-                <th class="text-end">Всего шт.</th>
-                <th class="text-end">Заполнено</th>
-                <th class="text-end">Без срока</th>
-                <th class="text-end">Тестеры</th>
-                <th class="text-end">Не внесено</th>
-                <th style="min-width:120px">Прогресс</th>
+                <th>Маг.</th>
+                <th class="text-end">Всего</th>
+                <th class="text-end d-none d-sm-table-cell">Запол.</th>
+                <th class="text-end d-none d-sm-table-cell">Б/срока</th>
+                <th class="text-end d-none d-sm-table-cell">Тест.</th>
+                <th class="text-end">Не вн.</th>
+                <th>%</th>
             </tr>
         </thead>
         <tbody>
@@ -33,11 +33,11 @@
                 {% set c_done = cns.c_filled + cns.c_noexp %}
                 {% set c_pct = ((c_done / cns.c_total) * 100) | int %}
                 <tr class="center-summary" style="background: #f0e6ed; font-weight: 700;">
-                    <td>Итого {{ cns.current_center }}</td>
+                    <td>Итого</td>
                     <td class="text-end">{{ cns.c_total }}</td>
-                    <td class="text-end">{{ cns.c_filled }}</td>
-                    <td class="text-end">{{ cns.c_noexp }}</td>
-                    <td class="text-end" style="color: #e91e90;">{{ cns.c_testers }}</td>
+                    <td class="text-end d-none d-sm-table-cell">{{ cns.c_filled }}</td>
+                    <td class="text-end d-none d-sm-table-cell">{{ cns.c_noexp }}</td>
+                    <td class="text-end d-none d-sm-table-cell" style="color: #e91e90;">{{ cns.c_testers }}</td>
                     <td class="text-end" style="color: #991E66;">{{ cns.c_notfilled }}</td>
                     <td>
                         <div class="progress" style="height: 20px;">
@@ -55,7 +55,7 @@
                 {% set cns.c_testers = 0 %}
                 <tr class="center-header" style="cursor: pointer; background: #f0f0f0;"
                     data-cid="{{ s.center_id or 0 }}">
-                    <td colspan="7" class="fw-bold small text-muted py-1">
+                    <td colspan="99" class="fw-bold small text-muted py-1">
                         <span class="center-arrow">▼</span>
                         📁 {{ cname }}
                     </td>
@@ -75,9 +75,9 @@
                     <a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a>
                 </td>
                 <td class="text-end">{{ s.total }}</td>
-                <td class="text-end">{{ filled }}</td>
-                <td class="text-end">{{ s.no_expiry }}</td>
-                <td class="text-end">
+                <td class="text-end d-none d-sm-table-cell">{{ filled }}</td>
+                <td class="text-end d-none d-sm-table-cell">{{ s.no_expiry }}</td>
+                <td class="text-end d-none d-sm-table-cell">
                     {% if s.get('testers', 0) > 0 %}
                         <span style="color: #e91e90;">{{ s.testers }}</span>
                     {% else %}
@@ -108,11 +108,11 @@
             {% set c_done = cns.c_filled + cns.c_noexp %}
             {% set c_pct = ((c_done / cns.c_total) * 100) | int %}
             <tr class="center-summary" style="background: #f0e6ed; font-weight: 700;">
-                <td>Итого {{ cns.current_center }}</td>
+                <td>Итого</td>
                 <td class="text-end">{{ cns.c_total }}</td>
-                <td class="text-end">{{ cns.c_filled }}</td>
-                <td class="text-end">{{ cns.c_noexp }}</td>
-                <td class="text-end" style="color: #e91e90;">{{ cns.c_testers }}</td>
+                <td class="text-end d-none d-sm-table-cell">{{ cns.c_filled }}</td>
+                <td class="text-end d-none d-sm-table-cell">{{ cns.c_noexp }}</td>
+                <td class="text-end d-none d-sm-table-cell" style="color: #e91e90;">{{ cns.c_testers }}</td>
                 <td class="text-end" style="color: #991E66;">{{ cns.c_notfilled }}</td>
                 <td>
                     <div class="progress" style="height: 20px;">
@@ -214,12 +214,12 @@
     <table class="table table-sm align-middle mb-0">
         <thead>
             <tr>
-                <th>Магазин</th>
-                <th class="text-end">Просроч.</th>
-                <th class="text-end">70%</th>
-                <th class="text-end">50%</th>
+                <th>Маг.</th>
+                <th class="text-end">Проср.</th>
+                <th class="text-end d-none d-sm-table-cell">70%</th>
+                <th class="text-end d-none d-sm-table-cell">50%</th>
                 <th class="text-end fw-bold">Итого</th>
-                <th style="min-width:100px">Заполнено</th>
+                <th>%</th>
             </tr>
         </thead>
         <tbody>
@@ -229,7 +229,7 @@
             {% if cname != lns.current_center %}
                 {% set lns.current_center = cname %}
                 <tr class="table-light">
-                    <td colspan="7" class="fw-bold small text-muted py-1" style="background: #f0f0f0;">
+                    <td colspan="99" class="fw-bold small text-muted py-1" style="background: #f0f0f0;">
                         📁 {{ cname }}
                     </td>
                 </tr>
@@ -238,8 +238,8 @@
             <tr>
                 <td><a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a></td>
                 <td class="text-end text-danger">{{ '{:,.0f}'.format(s.expired).replace(',', ' ') }}</td>
-                <td class="text-end" style="color: #e65100;">{{ '{:,.0f}'.format(s.d70).replace(',', ' ') }}</td>
-                <td class="text-end" style="color: #f57f17;">{{ '{:,.0f}'.format(s.d50).replace(',', ' ') }}</td>
+                <td class="text-end d-none d-sm-table-cell" style="color: #e65100;">{{ '{:,.0f}'.format(s.d70).replace(',', ' ') }}</td>
+                <td class="text-end d-none d-sm-table-cell" style="color: #f57f17;">{{ '{:,.0f}'.format(s.d50).replace(',', ' ') }}</td>
                 <td class="text-end fw-bold">{{ '{:,.0f}'.format(s.total).replace(',', ' ') }} ₽</td>
                 <td>
                     <div class="progress" style="height: 18px;">
@@ -323,12 +323,12 @@
     <table class="table table-sm align-middle mb-0">
         <thead>
             <tr>
-                <th>Магазин</th>
-                <th class="text-end">Продано</th>
-                <th class="text-end">Обычные</th>
-                <th class="text-end">50%</th>
+                <th>Маг.</th>
+                <th class="text-end">Прод.</th>
+                <th class="text-end d-none d-sm-table-cell">Обычн.</th>
+                <th class="text-end d-none d-sm-table-cell">50%</th>
                 <th class="text-end">70%</th>
-                <th class="text-end">Просроч.</th>
+                <th class="text-end">Проср.</th>
             </tr>
         </thead>
         <tbody>
@@ -336,8 +336,8 @@
             <tr>
                 <td><a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a></td>
                 <td class="text-end fw-bold">{{ s.total_sold }}</td>
-                <td class="text-end text-success">{{ s.sold_normal }}</td>
-                <td class="text-end" style="color: #f57f17;">{{ s.sold_d50 }}</td>
+                <td class="text-end text-success d-none d-sm-table-cell">{{ s.sold_normal }}</td>
+                <td class="text-end d-none d-sm-table-cell" style="color: #f57f17;">{{ s.sold_d50 }}</td>
                 <td class="text-end" style="color: #e65100;">{{ s.sold_d70 }}</td>
                 <td class="text-end text-danger">{{ s.sold_expired }}</td>
             </tr>
@@ -359,11 +359,11 @@
     <table class="table table-sm mb-0">
         <thead>
             <tr>
-                <th>Магазин</th>
+                <th>Маг.</th>
                 <th>Входы</th>
-                <th>Партий добав.</th>
-                <th>Без срока</th>
-                <th>Последняя активность</th>
+                <th>Партий</th>
+                <th class="d-none d-sm-table-cell">Б/срока</th>
+                <th>Последняя</th>
             </tr>
         </thead>
         <tbody>
@@ -374,7 +374,7 @@
                 </td>
                 <td>{{ s.logins }}</td>
                 <td>{{ s.batches_added }}</td>
-                <td>{{ s.no_expiry_set }}</td>
+                <td class="d-none d-sm-table-cell">{{ s.no_expiry_set }}</td>
                 <td>
                     <small>{{ s.last_activity[:16] | replace('T', ' ') if s.last_activity else '—' }}</small>
                 </td>

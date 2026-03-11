@@ -11,7 +11,7 @@
     --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
     --radius: 12px;
     --radius-sm: 8px;
-    --bottom-nav-height: 56px;
+    --bottom-nav-height: 64px;
     --header-height: 48px;
 }
 
@@ -82,21 +82,21 @@ body {
 /* Desktop nav links — скрыты на мобиле */
 .desktop-nav { display: none; }
 
-/* ── Нижняя навигация (mobile) ────────────────────────────────────── */
+/* ── Нижняя навигация (mobile, KariGO style) ────────────────────── */
 
 .bottom-nav {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    height: var(--bottom-nav-height);
+    height: 64px;
     background: #fff;
-    border-top: 1px solid #e0e0e0;
+    border-top: 1px solid #eee;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: space-around;
     z-index: 1040;
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.06);
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.06);
     padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
@@ -106,25 +106,44 @@ body {
     align-items: center;
     justify-content: center;
     text-decoration: none;
-    color: #999;
-    font-size: 0.62rem;
+    color: #bbb;
+    font-size: 0.68rem;
     font-weight: 500;
     flex: 1;
-    padding: 6px 0;
+    padding: 8px 0 6px;
     transition: color 0.2s;
     -webkit-tap-highlight-color: transparent;
+    position: relative;
 }
 
 .bottom-nav-item svg {
-    width: 22px;
-    height: 22px;
-    margin-bottom: 2px;
-    fill: currentColor;
+    width: 26px;
+    height: 26px;
+    margin-bottom: 3px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
 }
 
 .bottom-nav-item.active {
     color: var(--kari-purple);
     font-weight: 700;
+}
+
+.bottom-nav-item.active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 32px;
+    height: 3px;
+    background: var(--kari-purple);
+    border-radius: 0 0 3px 3px;
+}
+
+.bottom-nav-item.active svg {
+    stroke-width: 2.2;
 }
 
 .bottom-nav-item:active {
@@ -666,8 +685,25 @@ body {
 
 @media (max-width: 576px) {
     .table td, .table th {
-        font-size: 0.78rem;
-        padding: 0.3rem 0.35rem;
+        font-size: 0.72rem;
+        padding: 0.25rem 0.2rem;
+    }
+    .table-modern thead th {
+        font-size: 0.68rem;
+        padding: 0.4rem 0.2rem;
+    }
+    .table-modern tbody td {
+        padding: 0.3rem 0.2rem;
+    }
+    .progress {
+        height: 16px !important;
+        min-width: 0 !important;
+    }
+    .progress-bar {
+        font-size: 0.6rem;
+    }
+    .store-link {
+        font-size: 0.75rem;
     }
     .summary-card .count {
         font-size: 1.3rem;
@@ -701,9 +737,6 @@ body {
 /* ── Десктоп ───────────────────────────────────────────────────────── */
 
 @media (min-width: 768px) {
-    .bottom-nav {
-        display: none;
-    }
     .desktop-nav {
         display: flex !important;
     }
