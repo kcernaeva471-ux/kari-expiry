@@ -413,6 +413,10 @@ def get_store_products(store_number: str, filter_status: str = None) -> list[dic
                 bd["prod_formatted"] = date.fromisoformat(b["production_date"]).strftime("%d.%m.%Y")
                 p["batches"].append(bd)
 
+        # Сколько штук внесено в партии
+        p["batch_total"] = sum(b.get("quantity", 0) or 0 for b in p["batches"])
+        p["remaining"] = max(p["available"] - p["batch_total"], 0) if not p["no_expiry"] else 0
+
         # Определяем общий статус товара
         if p["no_expiry"]:
             p["status"] = "Без срока"
@@ -433,8 +437,10 @@ def get_store_products(store_number: str, filter_status: str = None) -> list[dic
             if batch_statuses & {"ПРОСРОЧЕН", "Скидка 70%", "Скидка 50%"}:
                 products.append(p)
         elif filter_status == "Не заполнен":
-            if p["status"] == "Не заполнен":
-                products.append(p)
+            # Показываем если нет партий ИЛИ внесено меньше чем available
+            if not p["batches"] or p["remaining"] > 0:
+                if not p["no_expiry"]:
+                    products.append(p)
         elif filter_status and filter_status != "all":
             if filter_status in batch_statuses or (not p["batches"] and p["status"] == filter_status):
                 products.append(p)
@@ -505,6 +511,12 @@ def get_all_stores_summary() -> list[dict]:
 
         not_filled = max(total - no_expiry - filled, 0)
 
+        # Тестеры (количество артикулов-тестеров)
+        testers = db.execute(
+            "SELECT COUNT(*) as c FROM store_products WHERE store_number = ? AND tester = 1",
+            (store,),
+        ).fetchone()["c"]
+
         # Категории по количеству штук в партиях
         counts = {"ПРОСРОЧЕН": 0, "Скидка 70%": 0, "Скидка 50%": 0, "В норме": 0}
         batch_rows = db.execute(
@@ -527,6 +539,7 @@ def get_all_stores_summary() -> list[dict]:
             "total": total,
             "not_filled": not_filled,
             "no_expiry": no_expiry,
+            "testers": testers,
             **counts,
         })
 

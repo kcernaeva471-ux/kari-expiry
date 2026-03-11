@@ -85,6 +85,17 @@
                     &middot; ост: {{ p.available }}
                     {% if p.brand %}&middot; {{ p.brand }}{% endif %}
                 </div>
+                {% if not p.no_expiry and p.available > 0 %}
+                <div style="font-size: 0.7rem;">
+                    {% if p.batch_total >= p.available %}
+                        <span class="text-success">внесено {{ p.batch_total }} из {{ p.available }}</span>
+                    {% elif p.batch_total > 0 %}
+                        <span style="color: #e65100;">внесено {{ p.batch_total }} из {{ p.available }}</span>
+                    {% else %}
+                        <span class="text-muted">не внесено ({{ p.available }} шт.)</span>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
             <div class="text-end ms-2" style="min-width: 70px;">
                 {% if p.status == 'ПРОСРОЧЕН' %}
