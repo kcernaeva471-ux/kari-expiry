@@ -60,7 +60,7 @@
             <span class="text-success">(доп. импорт)</span>
             {% endif %}
         </div>
-        {% if last_snapshot.products_zeroed > 0 or last_snapshot.products_added > 0 %}
+        {% if last_snapshot.products_zeroed > 0 or last_snapshot.products_added > 0 or last_snapshot.products_updated > 0 %}
         <button class="btn btn-sm btn-outline-danger" onclick="undoImport({{ last_snapshot.id }})">
             Отменить этот импорт
         </button>
