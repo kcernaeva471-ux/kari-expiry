@@ -113,8 +113,8 @@
         </div>
     </div>
     <div class="col-6 col-sm">
-        <div class="summary-card" style="background: #fbe9d7;">
-            <div class="count" style="font-size: 1.2rem; color: #6D4C30;">{{ '{:,.0f}'.format(losses.totals.d70).replace(',', ' ') }} ₽</div>
+        <div class="summary-card" style="background: #ffe0b2;">
+            <div class="count" style="font-size: 1.2rem; color: #e65100;">{{ '{:,.0f}'.format(losses.totals.d70).replace(',', ' ') }} ₽</div>
             <small>Скидка 70%</small>
         </div>
     </div>
@@ -168,7 +168,7 @@
             <tr>
                 <td><a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a></td>
                 <td class="text-end text-danger">{{ '{:,.0f}'.format(s.expired).replace(',', ' ') }}</td>
-                <td class="text-end" style="color: #6D4C30;">{{ '{:,.0f}'.format(s.d70).replace(',', ' ') }}</td>
+                <td class="text-end" style="color: #e65100;">{{ '{:,.0f}'.format(s.d70).replace(',', ' ') }}</td>
                 <td class="text-end" style="color: #f57f17;">{{ '{:,.0f}'.format(s.d50).replace(',', ' ') }}</td>
                 <td class="text-end fw-bold">{{ '{:,.0f}'.format(s.total).replace(',', ' ') }} ₽</td>
                 <td>
@@ -235,8 +235,8 @@
         </div>
     </div>
     <div class="col-6 col-sm">
-        <div class="summary-card" style="background: #fbe9d7;">
-            <div class="count" style="font-size: 1.2rem; color: #6D4C30;">{{ sns.sold_d70 }}</div>
+        <div class="summary-card" style="background: #ffe0b2;">
+            <div class="count" style="font-size: 1.2rem; color: #e65100;">{{ sns.sold_d70 }}</div>
             <small>Скидка 70%</small>
         </div>
     </div>
@@ -268,7 +268,7 @@
                 <td class="text-end fw-bold">{{ s.total_sold }}</td>
                 <td class="text-end text-success">{{ s.sold_normal }}</td>
                 <td class="text-end" style="color: #f57f17;">{{ s.sold_d50 }}</td>
-                <td class="text-end" style="color: #6D4C30;">{{ s.sold_d70 }}</td>
+                <td class="text-end" style="color: #e65100;">{{ s.sold_d70 }}</td>
                 <td class="text-end text-danger">{{ s.sold_expired }}</td>
             </tr>
             {% endfor %}

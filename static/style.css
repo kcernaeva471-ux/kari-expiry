@@ -256,8 +256,8 @@ body {
     font-size: 0.75rem;
 }
 
-/* Коричневый (70%) и жёлтый (50%) */
-.bg-brown { background-color: #A67C52 !important; color: #fff; }
+/* Оранжевый (70%) и жёлтый (50%) */
+.bg-brown { background-color: #e65100 !important; color: #fff; }
 .bg-yellow { background-color: #fdd835 !important; color: #333; }
 
 /* ── Инструкция ───────────────────────────────────────────────────── */

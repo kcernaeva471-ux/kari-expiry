@@ -36,9 +36,9 @@
             <div>
                 <span class="toggle-icon" id="icon-{{ c.id }}">&#9654;</span>
                 <strong class="ms-1">{{ c.name }}</strong>
-                <span class="badge bg-secondary ms-2">{{ c.store_count }} маг.</span>
+                <span class="badge ms-2" style="background: #e8a0c8; color: #6d1549;">{{ c.store_count }} маг.</span>
                 {% if c.manager %}
-                <span class="badge bg-primary ms-1">ДП: {{ c.manager.manager_name }}</span>
+                <span class="badge ms-1" style="background: #991E66; color: #fff;">ДП: {{ c.manager.manager_name }}</span>
                 {% else %}
                 <span class="badge bg-warning text-dark ms-1">Нет ДП</span>
                 {% endif %}
@@ -61,7 +61,7 @@
             {% if c.manager %}
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <span class="badge bg-primary">ДП</span>
+                    <span class="badge" style="background: #991E66;">ДП</span>
                     <strong class="ms-1">{{ c.manager.manager_name }}</strong>
                     <br><code class="small">тел: {{ c.manager.store_number }}, код: {{ c.manager.access_code }}</code>
                 </div>

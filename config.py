@@ -58,7 +58,7 @@ STATUS_MAP = {
 # ── Цвета категорий (для веба) ────────────────────────────────────────────
 CATEGORY_STYLES = {
     "ПРОСРОЧЕН": {"bg": "#f8d7da", "text": "#721c24", "badge": "danger"},
-    "Скидка 70%": {"bg": "#fbe9d7", "text": "#6D4C30", "badge": "brown"},
+    "Скидка 70%": {"bg": "#ffe0b2", "text": "#e65100", "badge": "brown"},
     "Скидка 50%": {"bg": "#fff9c4", "text": "#f57f17", "badge": "warning"},
     "В норме": {"bg": "#c8e6c9", "text": "#1b5e20", "badge": "success"},
 }
