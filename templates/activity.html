@@ -27,7 +27,7 @@
             {% set filled = s.total - s.not_filled - s.no_expiry %}
             {% set done = filled + s.no_expiry %}
             {% set pct = ((done / s.total) * 100) | int if s.total > 0 else 0 %}
-            <tr class="{{ 'table-danger' if s.not_filled > 0 and pct < 50 else ('table-warning' if s.not_filled > 0 and pct < 100 else 'table-success') }}">
+            <tr class="{{ '' if s.not_filled > 0 and pct < 50 else ('' if s.not_filled > 0 and pct < 100 else 'table-success') }}">
                 <td>
                     <a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a>
                 </td>
@@ -36,14 +36,14 @@
                 <td>{{ s.no_expiry }}</td>
                 <td>
                     {% if s.not_filled > 0 %}
-                        <span class="fw-bold text-danger">{{ s.not_filled }}</span>
+                        <span class="fw-bold" style="color: #991E66;">{{ s.not_filled }}</span>
                     {% else %}
                         <span class="text-success">0</span>
                     {% endif %}
                 </td>
                 <td>
                     <div class="progress" style="height: 18px;">
-                        <div class="progress-bar {{ 'bg-success' if pct == 100 else ('bg-warning' if pct >= 50 else 'bg-danger') }}"
+                        <div class="progress-bar {{ 'bg-success' if pct >= 80 else ('bg-warning text-dark' if pct >= 30 else '') }}"
                              style="width: {{ pct }}%;" role="progressbar">
                             {{ pct }}%
                         </div>
@@ -77,7 +77,7 @@
     <h6 class="mb-0 fw-bold">Потери в деньгах</h6>
     <div class="d-flex align-items-center gap-2">
         <small class="text-muted">Цены: {{ prices_count.fetched }}/{{ prices_count.total }}</small>
-        <button class="btn btn-sm btn-outline-primary" id="btn-fetch-prices" onclick="fetchPrices()">
+        <button class="btn btn-sm" style="border: 1px solid #991E66; color: #991E66;" id="btn-fetch-prices" onclick="fetchPrices()">
             Обновить цены
         </button>
     </div>

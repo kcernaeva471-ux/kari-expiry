@@ -83,7 +83,7 @@
                 {% set filled = s.total - s.not_filled - s.no_expiry %}
                 {% set done = filled + s.no_expiry %}
                 {% set pct = ((done / s.total) * 100) | int if s.total > 0 else 0 %}
-                <tr class="{{ 'table-danger' if s.get('ПРОСРОЧЕН', 0) > 0 else '' }}">
+                <tr>
                     <td>
                         <a href="/store/{{ s.store_number }}" class="store-link">
                             {{ s.store_number }}
@@ -99,7 +99,7 @@
                     </td>
                     <td class="text-center">
                         <div class="progress" style="height: 16px;">
-                            <div class="progress-bar {{ 'bg-success' if pct == 100 else ('bg-warning' if pct >= 50 else 'bg-danger') }}"
+                            <div class="progress-bar {{ 'bg-success' if pct >= 80 else ('bg-warning text-dark' if pct >= 30 else '') }}"
                                  style="width: {{ pct }}%;">
                                 {{ pct }}%
                             </div>
