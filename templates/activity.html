@@ -6,7 +6,7 @@
     <h5>Контроль активности</h5>
 </div>
 
-<!-- Заполненность сроков годности по магазинам -->
+<!-- Заполненность сроков годности по центрам и магазинам -->
 <h6 class="mb-2 fw-bold">Заполненность сроков годности</h6>
 <div class="table-modern mb-4">
 <div class="table-responsive">
@@ -14,27 +14,65 @@
         <thead>
             <tr>
                 <th>Магазин</th>
-                <th>Всего шт.</th>
-                <th>Заполнено шт.</th>
-                <th>Без срока шт.</th>
-                <th>Не внесено шт.</th>
+                <th class="text-end">Всего шт.</th>
+                <th class="text-end">Заполнено</th>
+                <th class="text-end">Без срока</th>
+                <th class="text-end">Не внесено</th>
                 <th style="min-width:120px">Прогресс</th>
             </tr>
         </thead>
         <tbody>
+            {% set cns = namespace(current_center='', c_total=0, c_filled=0, c_noexp=0, c_notfilled=0) %}
             {% for s in stores_completion %}
             {% if s.total > 0 %}
+            {% set cname = s.get('center_name', '') or 'Без центра' %}
+
+            {# Новый центр — показать итог предыдущего #}
+            {% if cname != cns.current_center %}
+                {% if cns.current_center and cns.c_total > 0 %}
+                {% set c_done = cns.c_filled + cns.c_noexp %}
+                {% set c_pct = ((c_done / cns.c_total) * 100) | int %}
+                <tr style="background: #f0e6ed; font-weight: 700;">
+                    <td>Итого {{ cns.current_center }}</td>
+                    <td class="text-end">{{ cns.c_total }}</td>
+                    <td class="text-end">{{ cns.c_filled }}</td>
+                    <td class="text-end">{{ cns.c_noexp }}</td>
+                    <td class="text-end" style="color: #991E66;">{{ cns.c_notfilled }}</td>
+                    <td>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar {{ 'bg-success' if c_pct >= 80 else ('bg-warning text-dark' if c_pct >= 30 else '') }}"
+                                 style="width: {{ c_pct }}%;">{{ c_pct }}%</div>
+                        </div>
+                    </td>
+                </tr>
+                {% endif %}
+                {% set cns.current_center = cname %}
+                {% set cns.c_total = 0 %}
+                {% set cns.c_filled = 0 %}
+                {% set cns.c_noexp = 0 %}
+                {% set cns.c_notfilled = 0 %}
+                <tr class="table-light">
+                    <td colspan="6" class="fw-bold small text-muted py-1" style="background: #f0f0f0;">
+                        📁 {{ cname }}
+                    </td>
+                </tr>
+            {% endif %}
+
             {% set filled = s.total - s.not_filled - s.no_expiry %}
             {% set done = filled + s.no_expiry %}
             {% set pct = ((done / s.total) * 100) | int if s.total > 0 else 0 %}
-            <tr class="{{ '' if s.not_filled > 0 and pct < 50 else ('' if s.not_filled > 0 and pct < 100 else 'table-success') }}">
+            {% set cns.c_total = cns.c_total + s.total %}
+            {% set cns.c_filled = cns.c_filled + filled %}
+            {% set cns.c_noexp = cns.c_noexp + s.no_expiry %}
+            {% set cns.c_notfilled = cns.c_notfilled + s.not_filled %}
+            <tr>
                 <td>
                     <a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a>
                 </td>
-                <td>{{ s.total }}</td>
-                <td>{{ filled }}</td>
-                <td>{{ s.no_expiry }}</td>
-                <td>
+                <td class="text-end">{{ s.total }}</td>
+                <td class="text-end">{{ filled }}</td>
+                <td class="text-end">{{ s.no_expiry }}</td>
+                <td class="text-end">
                     {% if s.not_filled > 0 %}
                         <span class="fw-bold" style="color: #991E66;">{{ s.not_filled }}</span>
                     {% else %}
@@ -52,6 +90,25 @@
             </tr>
             {% endif %}
             {% endfor %}
+
+            {# Итог последнего центра #}
+            {% if cns.c_total > 0 %}
+            {% set c_done = cns.c_filled + cns.c_noexp %}
+            {% set c_pct = ((c_done / cns.c_total) * 100) | int %}
+            <tr style="background: #f0e6ed; font-weight: 700;">
+                <td>Итого {{ cns.current_center }}</td>
+                <td class="text-end">{{ cns.c_total }}</td>
+                <td class="text-end">{{ cns.c_filled }}</td>
+                <td class="text-end">{{ cns.c_noexp }}</td>
+                <td class="text-end" style="color: #991E66;">{{ cns.c_notfilled }}</td>
+                <td>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar {{ 'bg-success' if c_pct >= 80 else ('bg-warning text-dark' if c_pct >= 30 else '') }}"
+                             style="width: {{ c_pct }}%;">{{ c_pct }}%</div>
+                    </div>
+                </td>
+            </tr>
+            {% endif %}
         </tbody>
     </table>
 </div>
