@@ -9,35 +9,35 @@
 
 <!-- Счётчики -->
 <div class="row g-2 mb-3">
-    <div class="col-3 col-sm-2">
+    <div class="col-6 col-sm-3">
         <a href="/store/{{ store_number }}?filter=ПРОСРОЧЕН" class="text-decoration-none">
             <div class="summary-card" style="background: #f8d7da;">
                 <div class="count text-danger">{{ stats.get('ПРОСРОЧЕН', 0) }}</div>
-                <small>Просроч. шт.</small>
+                <small>Просрочено</small>
             </div>
         </a>
     </div>
-    <div class="col-3 col-sm-2">
+    <div class="col-6 col-sm-3">
         <a href="/store/{{ store_number }}?filter=Скидка 70%25" class="text-decoration-none">
             <div class="summary-card" style="background: #ffe0b2;">
                 <div class="count" style="color: #e65100;">{{ stats.get('Скидка 70%', 0) }}</div>
-                <small>70% шт.</small>
+                <small>Скидка 70%</small>
             </div>
         </a>
     </div>
-    <div class="col-3 col-sm-2">
+    <div class="col-6 col-sm-3">
         <a href="/store/{{ store_number }}?filter=Скидка 50%25" class="text-decoration-none">
             <div class="summary-card" style="background: #fff9c4;">
                 <div class="count" style="color: #f57f17;">{{ stats.get('Скидка 50%', 0) }}</div>
-                <small>50% шт.</small>
+                <small>Скидка 50%</small>
             </div>
         </a>
     </div>
-    <div class="col-3 col-sm-2">
+    <div class="col-6 col-sm-3">
         <a href="/store/{{ store_number }}?filter=В норме" class="text-decoration-none">
             <div class="summary-card" style="background: #c8e6c9;">
                 <div class="count text-success">{{ stats.get('В норме', 0) }}</div>
-                <small>Норма шт.</small>
+                <small>В норме</small>
             </div>
         </a>
     </div>

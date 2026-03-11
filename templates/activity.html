@@ -6,8 +6,7 @@
     <h5>Контроль активности</h5>
 </div>
 
-<!-- Заполненность сроков годности по центрам и магазинам -->
-<h6 class="mb-2 fw-bold">Заполненность сроков годности</h6>
+<p class="section-label">ЗАПОЛНЕННОСТЬ СРОКОВ ГОДНОСТИ</p>
 <div class="table-modern mb-4">
 <div class="table-responsive">
     <table class="table table-sm align-middle mb-0">
@@ -145,7 +144,7 @@
 
 <!-- Потери в деньгах -->
 <div class="d-flex justify-content-between align-items-center mb-2">
-    <h6 class="mb-0 fw-bold">Потери в деньгах</h6>
+    <p class="section-label mb-0">ПОТЕРИ В ДЕНЬГАХ</p>
     <div class="d-flex align-items-center gap-2">
         <small class="text-muted">Цены: {{ prices_count.fetched }}/{{ prices_count.total }}</small>
         <button class="btn btn-sm" style="border: 1px solid #991E66; color: #991E66;" id="btn-fetch-prices" onclick="fetchPrices()">
@@ -265,7 +264,7 @@
 {% endif %}
 
 <!-- Реализация (продажи) -->
-<h6 class="mb-2 fw-bold">Реализация за неделю</h6>
+<p class="section-label">РЕАЛИЗАЦИЯ ЗА НЕДЕЛЮ</p>
 
 {% if import_history %}
 <div class="small text-muted mb-2">
@@ -354,7 +353,7 @@
 {% endif %}
 
 <!-- Сводка активности -->
-<h6 class="mb-2 fw-bold">Активность по магазинам</h6>
+<p class="section-label">АКТИВНОСТЬ ПО МАГАЗИНАМ</p>
 <div class="table-modern mb-4">
 <div class="table-responsive">
     <table class="table table-sm mb-0">
@@ -405,7 +404,7 @@
 
 <!-- Фильтр -->
 <div class="d-flex gap-2 mb-2 align-items-center">
-    <h6 class="mb-0">Журнал</h6>
+    <p class="section-label mb-0">ЖУРНАЛ</p>
     {% if store_filter %}
         <span class="badge bg-primary">Магазин {{ store_filter }}</span>
         <a href="/activity" class="btn btn-sm btn-outline-secondary">Все</a>
@@ -415,7 +414,7 @@
 <!-- Лог -->
 <div class="list-group mb-3">
     {% for entry in log %}
-    <div class="list-group-item py-1 px-2" style="font-size: 0.8rem;">
+    <div class="list-group-item log-entry" data-action="{{ entry.action }}">
         <div class="d-flex justify-content-between">
             <span>
                 <a href="/activity?store={{ entry.store_number }}" class="fw-bold text-decoration-none">

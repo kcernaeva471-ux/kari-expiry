@@ -2,23 +2,36 @@
 {% block title %}Сводка — Kari{% endblock %}
 {% block content %}
 
-<div class="page-header">
-    <h5>Сводка по магазинам</h5>
-    <span class="text-muted small">{{ stores | length }} магазинов</span>
+<!-- Профиль-бар -->
+<div class="profile-bar">
+    <div>
+        <div class="role-label">
+            {% if session.get('role') == 'admin' %}Администратор
+            {% elif session.get('role') == 'center_manager' %}Директор подразделения
+            {% else %}Магазин {{ session.get('store_number') }}{% endif %}
+        </div>
+        <div class="role-sub">{{ stores | length }} магазинов</div>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <span class="role-badge">
+            {% if session.get('role') == 'admin' %}Админ{% elif session.get('role') == 'center_manager' %}ДП{% else %}{{ session.get('store_number') }}{% endif %}
+        </span>
+        <a href="/logout" class="btn-logout-sm d-md-none">Выход</a>
+    </div>
 </div>
 
 <!-- Краткая инструкция -->
 <div class="instruction-card mb-3">
     <div class="instruction-toggle" onclick="toggleInstruction()">
-        <span>📋 Как пользоваться системой?</span>
-        <small class="text-muted" id="instr-hint">(нажмите чтобы развернуть)</small>
+        <span>Как пользоваться системой?</span>
+        <small class="text-muted" id="instr-hint">(нажмите)</small>
     </div>
     <div class="instruction-body" id="instruction-body" style="display: none;">
         <div class="row g-2 mt-1">
             <div class="col-12">
                 <b>1.</b> Войдите в свой магазин по коду доступа<br>
-                <b>2.</b> Нажмите на товар → укажите <b>дату производства</b> и <b>срок годности</b> в месяцах<br>
-                <b>3.</b> Система автоматически рассчитает статус товара:
+                <b>2.</b> Нажмите на товар, укажите <b>дату производства</b> и <b>срок годности</b><br>
+                <b>3.</b> Система рассчитает статус:
             </div>
             <div class="col-6 col-sm-3">
                 <div class="d-flex align-items-center gap-1">
@@ -29,130 +42,102 @@
             <div class="col-6 col-sm-3">
                 <div class="d-flex align-items-center gap-1">
                     <span class="badge bg-brown">70%</span>
-                    <small>— осталось &lt;90 дн.</small>
+                    <small>— &lt;90 дн.</small>
                 </div>
             </div>
             <div class="col-6 col-sm-3">
                 <div class="d-flex align-items-center gap-1">
                     <span class="badge bg-yellow">50%</span>
-                    <small>— осталось &lt;180 дн.</small>
+                    <small>— &lt;180 дн.</small>
                 </div>
             </div>
             <div class="col-6 col-sm-3">
                 <div class="d-flex align-items-center gap-1">
                     <span class="badge bg-success">OK</span>
-                    <small>— всё в порядке</small>
+                    <small>— всё хорошо</small>
                 </div>
-            </div>
-            <div class="col-12 mt-1">
-                <small class="text-muted">Колонка <b>«Осталось»</b> — сколько товаров ещё не внесли. <b>«Прогресс»</b> — процент заполненных.</small>
             </div>
         </div>
     </div>
 </div>
 
+<p class="section-label">МАГАЗИНЫ</p>
+
+<!-- Карточки магазинов по центрам -->
+{% set ns = namespace(current_center='', group_open=false) %}
+{% for s in stores %}
+    {% set cname = s.get('center_name', '') or 'Без центра' %}
+
+    {% if cname != ns.current_center %}
+        {% if ns.group_open %}</div>{% endif %}
+        {% set ns.current_center = cname %}
+
+        {# Считаем магазины в этом центре #}
+        {% set center_stores = [] %}
+        {% for cs in stores %}
+            {% if (cs.get('center_name', '') or 'Без центра') == cname %}
+                {% if center_stores.append(cs) %}{% endif %}
+            {% endif %}
+        {% endfor %}
+
+        <!-- Заголовок центра -->
+        <div class="group-header" onclick="this.classList.toggle('collapsed'); var b=this.nextElementSibling; b.style.display=this.classList.contains('collapsed')?'none':'block';">
+            <div>
+                <span class="group-name">{{ cname }}</span>
+                <span class="group-meta">{{ center_stores | length }} маг.</span>
+            </div>
+            <span class="chevron">&#9660;</span>
+        </div>
+        <div class="group-body">
+        {% set ns.group_open = true %}
+    {% endif %}
+
+    {% set filled = s.total - s.not_filled - s.no_expiry %}
+    {% set done = filled + s.no_expiry %}
+    {% set pct = ((done / s.total) * 100) | int if s.total > 0 else 0 %}
+
+    <a href="/store/{{ s.store_number }}" class="store-card">
+        <div style="flex:1; min-width:0;">
+            <div class="store-name">{{ s.store_number }}</div>
+            <div class="store-stats">
+                {{ s.total }} тов.
+                {% if s.get('ПРОСРОЧЕН', 0) > 0 %}
+                    &middot; <span class="text-danger fw-bold">{{ s['ПРОСРОЧЕН'] }} просроч.</span>
+                {% endif %}
+                {% if s.get('Скидка 70%', 0) > 0 %}
+                    &middot; <span style="color:#e65100">{{ s['Скидка 70%'] }} (70%)</span>
+                {% endif %}
+                {% if s.not_filled > 0 %}
+                    &middot; <span class="text-secondary">{{ s.not_filled }} ост.</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="store-progress">
+            <div class="fw-bold small text-end" style="color: {{ '#198754' if pct >= 80 else ('#856404' if pct >= 30 else '#dc3545') }}; font-size:0.85rem;">
+                {{ pct }}%
+            </div>
+            <div class="progress" style="height:6px; width:50px;">
+                <div class="progress-bar {{ 'bg-success' if pct >= 80 else ('bg-warning' if pct >= 30 else 'bg-danger') }}"
+                     style="width:{{ pct }}%;"></div>
+            </div>
+        </div>
+    </a>
+{% endfor %}
+{% if ns.group_open %}</div>{% endif %}
+
+{% if show_codes %}
+<p class="section-label mt-3">КОДЫ ДОСТУПА</p>
 <div class="table-modern">
 <div class="table-responsive">
-    <table class="table table-sm table-hover align-middle mb-0">
-        <thead>
-            <tr>
-                <th>Магазин</th>
-                <th class="text-center">Товары шт.</th>
-                <th class="text-center">Осталось шт.</th>
-                <th class="text-center" style="min-width:80px">Прогресс</th>
-                <th class="text-center">Просроч.</th>
-                <th class="text-center">70%</th>
-                <th class="text-center">50%</th>
-                <th class="text-center d-none d-sm-table-cell">Норма</th>
-            </tr>
-        </thead>
+    <table class="table table-sm mb-0">
+        <thead><tr><th>Магазин</th><th>Код</th></tr></thead>
         <tbody>
-            {# Группируем магазины по центрам #}
-            {% set ns = namespace(current_center='') %}
-            {% for s in stores %}
-                {# Заголовок центра #}
-                {% set cname = s.get('center_name', '') or 'Без центра' %}
-                {% if cname != ns.current_center %}
-                    {% set ns.current_center = cname %}
-                    <tr class="table-light">
-                        <td colspan="8" class="fw-bold small text-muted py-1" style="background: #f0f0f0;">
-                            📁 {{ cname }}
-                        </td>
-                    </tr>
-                {% endif %}
-                {% set filled = s.total - s.not_filled - s.no_expiry %}
-                {% set done = filled + s.no_expiry %}
-                {% set pct = ((done / s.total) * 100) | int if s.total > 0 else 0 %}
-                <tr>
-                    <td>
-                        <a href="/store/{{ s.store_number }}" class="store-link">
-                            {{ s.store_number }}
-                        </a>
-                    </td>
-                    <td class="text-center">{{ s.total }}</td>
-                    <td class="text-center">
-                        {% if s.not_filled > 0 %}
-                            <span class="badge-pill bg-secondary text-white">{{ s.not_filled }}</span>
-                        {% else %}
-                            <span class="text-success fw-bold">0</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-center">
-                        <div class="progress" style="height: 16px;">
-                            <div class="progress-bar {{ 'bg-success' if pct >= 80 else ('bg-warning text-dark' if pct >= 30 else '') }}"
-                                 style="width: {{ pct }}%;">
-                                {{ pct }}%
-                            </div>
-                        </div>
-                    </td>
-                    <td class="text-center">
-                        {% if s.get('ПРОСРОЧЕН', 0) > 0 %}
-                            <span class="badge-pill bg-danger text-white">{{ s['ПРОСРОЧЕН'] }}</span>
-                        {% else %}
-                            <span class="text-muted">—</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-center">
-                        {% if s.get('Скидка 70%', 0) > 0 %}
-                            <span class="badge-pill bg-brown text-white">{{ s['Скидка 70%'] }}</span>
-                        {% else %}
-                            <span class="text-muted">—</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-center">
-                        {% if s.get('Скидка 50%', 0) > 0 %}
-                            <span class="badge-pill bg-yellow text-dark">{{ s['Скидка 50%'] }}</span>
-                        {% else %}
-                            <span class="text-muted">—</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-center d-none d-sm-table-cell">
-                        <span class="text-success fw-bold">{{ s.get('В норме', 0) }}</span>
-                    </td>
-                </tr>
+            {% for c in codes %}
+            <tr><td class="fw-bold">{{ c.store_number }}</td><td><code class="fs-6">{{ c.access_code }}</code></td></tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
-</div>
-
-{% if show_codes %}
-<div class="mt-4">
-    <div class="page-header">
-        <h5>Коды доступа магазинов</h5>
-    </div>
-    <div class="table-modern">
-    <div class="table-responsive">
-        <table class="table table-sm mb-0">
-            <thead><tr><th>Магазин</th><th>Код</th></tr></thead>
-            <tbody>
-                {% for c in codes %}
-                <tr><td class="fw-bold">{{ c.store_number }}</td><td><code class="fs-6">{{ c.access_code }}</code></td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    </div>
 </div>
 {% endif %}
 
@@ -165,7 +150,7 @@ function toggleInstruction() {
         hint.textContent = '(свернуть)';
     } else {
         body.style.display = 'none';
-        hint.textContent = '(нажмите чтобы развернуть)';
+        hint.textContent = '(нажмите)';
     }
 }
 </script>

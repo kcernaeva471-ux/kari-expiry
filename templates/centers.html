@@ -2,16 +2,23 @@
 {% block title %}Центры — Kari{% endblock %}
 {% block content %}
 
-<div class="page-header d-flex justify-content-between align-items-center">
+<div class="page-header">
     <h5 class="mb-0">Управление центрами</h5>
-    <div class="d-flex gap-1">
-        <button class="btn btn-sm btn-outline-secondary" onclick="toggleAll()">Развернуть все</button>
-        <button class="btn btn-sm" style="border: 1px solid #991E66; color: #991E66;" onclick="document.getElementById('center-file').click()">
-            Загрузить из Excel
-        </button>
-        <button class="btn btn-sm btn-kari" onclick="showAddCenter()">+ Центр</button>
-    </div>
 </div>
+
+<div class="d-flex gap-2 mb-3">
+    <button class="btn-app btn-app-primary flex-fill" onclick="showAddCenter()" style="padding:10px">
+        + Новый центр
+    </button>
+    <button class="btn-app btn-app-outline flex-fill" onclick="document.getElementById('center-file').click()" style="padding:10px">
+        Из Excel
+    </button>
+    <button class="btn-app btn-app-outline" onclick="toggleAll()" style="padding:10px; width:auto; flex:0;">
+        Все
+    </button>
+</div>
+
+<p class="section-label">ЦЕНТРЫ</p>
 
 <!-- Скрытый input для загрузки файла центров -->
 <input type="file" id="center-file" accept=".xlsx,.xls" style="display:none"
@@ -30,32 +37,26 @@
 </div>
 
 {% for c in centers %}
-<div class="card mb-2">
-    <div class="card-header py-2" style="cursor:pointer" onclick="toggleCenter({{ c.id }})">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <span class="toggle-icon" id="icon-{{ c.id }}">&#9654;</span>
-                <strong class="ms-1">{{ c.name }}</strong>
-                <span class="badge ms-2" style="background: #e8a0c8; color: #6d1549;">{{ c.store_count }} маг.</span>
-                {% if c.manager %}
-                <span class="badge ms-1" style="background: #991E66; color: #fff;">ДП: {{ c.manager.manager_name }}</span>
-                {% else %}
-                <span class="badge bg-warning text-dark ms-1">Нет ДП</span>
-                {% endif %}
-            </div>
-            <div class="d-flex gap-1" onclick="event.stopPropagation()">
-                <button class="btn btn-sm py-0 px-1" style="border: 1px solid #991E66; color: #991E66;"
-                        onclick="renameCenter({{ c.id }}, '{{ c.name }}')">
-                    <small>Переименовать</small>
-                </button>
-                <button class="btn btn-sm py-0 px-1" style="border: 1px solid #c2185b; color: #c2185b;"
-                        onclick="deleteCenter({{ c.id }}, '{{ c.name }}')">
-                    <small>Удалить</small>
-                </button>
-            </div>
+<div class="mb-2">
+    <div class="group-header" onclick="toggleCenter({{ c.id }})">
+        <div>
+            <span class="group-name">{{ c.name }}</span>
+            <span class="group-meta">{{ c.store_count }} маг.</span>
+            {% if c.manager %}
+            <span class="badge ms-1" style="background: rgba(255,255,255,0.25); color: #fff; font-size: 0.7rem;">ДП: {{ c.manager.manager_name }}</span>
+            {% else %}
+            <span class="badge bg-warning text-dark ms-1" style="font-size: 0.7rem;">Нет ДП</span>
+            {% endif %}
+        </div>
+        <div class="d-flex align-items-center gap-2" onclick="event.stopPropagation()">
+            <button class="btn btn-sm py-0 px-2" style="border: 1px solid rgba(255,255,255,0.5); color: #fff; font-size: 0.7rem;"
+                    onclick="renameCenter({{ c.id }}, '{{ c.name }}')">Переим.</button>
+            <button class="btn btn-sm py-0 px-2" style="border: 1px solid rgba(255,255,255,0.5); color: #fff; font-size: 0.7rem;"
+                    onclick="deleteCenter({{ c.id }}, '{{ c.name }}')">Удалить</button>
+            <span class="chevron" id="icon-{{ c.id }}">&#9654;</span>
         </div>
     </div>
-    <div class="card-body p-2" id="body-{{ c.id }}" style="display:none;">
+    <div class="p-2 bg-white rounded-bottom" id="body-{{ c.id }}" style="display:none; border: 1px solid #eee; border-top:none;">
         <!-- Директор подразделения -->
         <div class="mb-2 p-2 rounded" style="background: #f8f0f5;">
             {% if c.manager %}
@@ -141,14 +142,14 @@
 
 <script>
 function toggleCenter(id) {
-    const body = document.getElementById('body-' + id);
-    const icon = document.getElementById('icon-' + id);
+    var body = document.getElementById('body-' + id);
+    var icon = document.getElementById('icon-' + id);
     if (body.style.display === 'none') {
         body.style.display = 'block';
-        icon.innerHTML = '&#9660;';
+        if (icon) icon.innerHTML = '&#9660;';
     } else {
         body.style.display = 'none';
-        icon.innerHTML = '&#9654;';
+        if (icon) icon.innerHTML = '&#9654;';
     }
 }
 

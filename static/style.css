@@ -1,4 +1,4 @@
-/* ── Kari Modern Design ─────────────────────────────────────────────── */
+/* ── Kari Modern Design — KariGO style ───────────────────────────────── */
 
 :root {
     --kari-purple: #991E66;
@@ -11,6 +11,8 @@
     --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
     --radius: 12px;
     --radius-sm: 8px;
+    --bottom-nav-height: 56px;
+    --header-height: 48px;
 }
 
 body {
@@ -18,12 +20,23 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* ── Навбар ────────────────────────────────────────────────────────── */
+/* ── Навбар (компактный) ──────────────────────────────────────────── */
 
 .navbar-kari {
     background: var(--kari-gradient) !important;
-    padding: 0.5rem 1rem;
+    padding: 0;
     box-shadow: var(--shadow-md);
+    height: var(--header-height);
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+}
+.navbar-kari .container-fluid {
+    height: 100%;
+}
+.navbar-kari .navbar-brand {
+    padding: 0;
+    margin: 0;
 }
 .navbar-kari .navbar-brand img {
     filter: brightness(0) invert(1);
@@ -66,12 +79,262 @@ body {
     color: #fff;
 }
 
+/* Desktop nav links — скрыты на мобиле */
+.desktop-nav { display: none; }
+
+/* ── Нижняя навигация (mobile) ────────────────────────────────────── */
+
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--bottom-nav-height);
+    background: #fff;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    z-index: 1040;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.06);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: #999;
+    font-size: 0.62rem;
+    font-weight: 500;
+    flex: 1;
+    padding: 6px 0;
+    transition: color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.bottom-nav-item svg {
+    width: 22px;
+    height: 22px;
+    margin-bottom: 2px;
+    fill: currentColor;
+}
+
+.bottom-nav-item.active {
+    color: var(--kari-purple);
+    font-weight: 700;
+}
+
+.bottom-nav-item:active {
+    opacity: 0.7;
+}
+
+/* ── Профиль-бар ──────────────────────────────────────────────────── */
+
+.profile-bar {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.profile-bar .role-label {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #333;
+}
+
+.profile-bar .role-sub {
+    font-size: 0.72rem;
+    color: #999;
+    margin-top: 1px;
+}
+
+.profile-bar .role-badge {
+    background: var(--kari-gradient);
+    color: #fff;
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.profile-bar .btn-logout-sm {
+    color: #999;
+    font-size: 0.75rem;
+    text-decoration: none;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid #ddd;
+    transition: all 0.2s;
+}
+.profile-bar .btn-logout-sm:hover {
+    background: #f5f5f5;
+    color: #666;
+}
+
+/* ── Секционные заголовки (KariGO стиль) ──────────────────────────── */
+
+.section-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #9e9e9e;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 14px 4px 6px;
+    margin: 0;
+}
+
+/* ── Заголовки групп (сворачиваемые) ──────────────────────────────── */
+
+.group-header {
+    background: var(--kari-gradient);
+    color: #fff;
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.15s;
+}
+
+.group-header:active {
+    opacity: 0.85;
+}
+
+.group-header .group-name {
+    font-weight: 700;
+    font-size: 0.88rem;
+}
+
+.group-header .group-meta {
+    font-size: 0.72rem;
+    opacity: 0.85;
+    margin-left: 8px;
+}
+
+.group-header .chevron {
+    transition: transform 0.25s;
+    font-size: 0.8rem;
+}
+
+.group-header.collapsed .chevron {
+    transform: rotate(-90deg);
+}
+
+.group-body {
+    padding: 2px 0 8px;
+}
+
+/* ── Карточки магазинов ───────────────────────────────────────────── */
+
+.store-card {
+    background: #fff;
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 6px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-decoration: none;
+    color: inherit;
+    transition: box-shadow 0.15s, transform 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    border: 1px solid rgba(0,0,0,0.04);
+}
+
+.store-card:hover {
+    box-shadow: var(--shadow-md);
+    color: inherit;
+    text-decoration: none;
+}
+
+.store-card:active {
+    transform: scale(0.98);
+}
+
+.store-card .store-name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--kari-purple);
+}
+
+.store-card .store-stats {
+    font-size: 0.72rem;
+    color: #777;
+    margin-top: 2px;
+}
+
+.store-card .store-progress {
+    text-align: right;
+    min-width: 50px;
+}
+
+.store-card .progress {
+    height: 6px;
+    width: 50px;
+}
+
+/* ── Кнопки app-стиль ─────────────────────────────────────────────── */
+
+.btn-app {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 20px;
+    border-radius: var(--radius);
+    font-weight: 700;
+    font-size: 0.88rem;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+    -webkit-tap-highlight-color: transparent;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.btn-app-primary {
+    background: var(--kari-gradient);
+    color: #fff;
+    box-shadow: var(--shadow-sm);
+}
+.btn-app-primary:hover {
+    color: #fff;
+    box-shadow: var(--shadow-md);
+}
+
+.btn-app-outline {
+    background: #fff;
+    color: var(--kari-purple);
+    border-color: var(--kari-purple);
+}
+.btn-app-outline:hover {
+    background: var(--kari-light);
+    color: var(--kari-purple);
+}
+
+.btn-app:active {
+    transform: scale(0.97);
+    opacity: 0.9;
+}
+
 /* ── Карточки-счётчики ─────────────────────────────────────────────── */
 
 .summary-card {
     border-radius: var(--radius);
     text-align: center;
-    padding: 0.8rem 0.3rem;
+    padding: 14px 8px;
     box-shadow: var(--shadow-sm);
     transition: transform 0.2s, box-shadow 0.2s;
     border: 1px solid rgba(0,0,0,0.06);
@@ -81,7 +344,7 @@ body {
     box-shadow: var(--shadow-md);
 }
 .summary-card .count {
-    font-size: 1.8rem;
+    font-size: 1.6rem;
     font-weight: 800;
     line-height: 1;
 }
@@ -106,6 +369,7 @@ body {
 }
 .product-header {
     transition: opacity 0.15s;
+    min-height: 56px;
 }
 .product-header:active {
     opacity: 0.8;
@@ -162,6 +426,18 @@ body {
 .table-modern tbody td {
     vertical-align: middle;
     border-color: #f0f0f0;
+}
+
+/* Center headers в таблицах (activity) */
+.center-header td {
+    background: var(--kari-purple) !important;
+    color: #fff !important;
+    font-weight: 700;
+    padding: 8px 10px !important;
+}
+.center-summary td {
+    background: var(--kari-light) !important;
+    font-weight: 700;
 }
 
 /* ── Кнопки ────────────────────────────────────────────────────────── */
@@ -222,8 +498,9 @@ body {
 .login-card .form-select {
     border-radius: var(--radius-sm);
     border: 2px solid #eee;
-    padding: 0.6rem 0.8rem;
+    padding: 0.7rem 0.9rem;
     transition: border-color 0.2s;
+    font-size: 0.95rem;
 }
 .login-card .form-control:focus,
 .login-card .form-select:focus {
@@ -235,12 +512,15 @@ body {
 
 .filter-chip {
     border-radius: 20px;
-    padding: 4px 14px;
-    font-size: 0.8rem;
+    padding: 8px 16px;
+    font-size: 0.82rem;
     font-weight: 500;
     border: 1.5px solid;
     transition: all 0.2s;
     text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
 }
 .filter-chip:hover {
     transform: translateY(-1px);
@@ -315,9 +595,10 @@ body {
 
 .search-input {
     border-radius: 24px;
-    border: 2px solid #eee;
-    padding: 0.5rem 1rem 0.5rem 2.5rem;
-    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23999' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E") no-repeat 12px center;
+    border: 1.5px solid #e0e0e0;
+    padding: 12px 16px 12px 42px;
+    font-size: 0.9rem;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23999' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E") no-repeat 14px center;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 .search-input:focus {
@@ -342,40 +623,12 @@ body {
     margin: 0;
 }
 
-/* ── Мобильная оптимизация ─────────────────────────────────────────── */
+/* ── Контейнер страницы ────────────────────────────────────────────── */
 
-@media (max-width: 576px) {
-    .table td, .table th {
-        font-size: 0.8rem;
-        padding: 0.3rem 0.4rem;
-    }
-    .summary-card .count {
-        font-size: 1.4rem;
-    }
-    .summary-card small {
-        font-size: 0.65rem;
-    }
-    h5 { font-size: 1rem; }
-    .product-header {
-        padding: 0.4rem !important;
-    }
-    .add-batch-form .row {
-        flex-direction: column;
-    }
-    .add-batch-form .col-5,
-    .add-batch-form .col-3,
-    .add-batch-form .col-4,
-    .add-batch-form .col-2 {
-        width: 100%;
-        margin-bottom: 4px;
-    }
-    .login-card {
-        padding: 1.5rem;
-        border-radius: 16px;
-    }
-    .navbar-kari {
-        padding: 0.4rem 0.6rem;
-    }
+.content-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 0.75rem 0.75rem calc(var(--bottom-nav-height) + 16px);
 }
 
 /* ── Строки таблицы ────────────────────────────────────────────────── */
@@ -397,10 +650,69 @@ body {
     text-decoration: underline;
 }
 
-/* ── Контейнер страницы ────────────────────────────────────────────── */
+/* ── Журнал активности ────────────────────────────────────────────── */
 
-.content-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 1rem;
+.log-entry {
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    border-left: 3px solid #e0e0e0;
+}
+.log-entry[data-action="login"] { border-left-color: #2196f3; }
+.log-entry[data-action="add_batch"] { border-left-color: #4caf50; }
+.log-entry[data-action="delete_batch"] { border-left-color: #f44336; }
+.log-entry[data-action="no_expiry"] { border-left-color: #00bcd4; }
+
+/* ── Мобильная оптимизация ─────────────────────────────────────────── */
+
+@media (max-width: 576px) {
+    .table td, .table th {
+        font-size: 0.78rem;
+        padding: 0.3rem 0.35rem;
+    }
+    .summary-card .count {
+        font-size: 1.3rem;
+    }
+    .summary-card small {
+        font-size: 0.65rem;
+    }
+    h5 { font-size: 1rem; }
+    .product-header {
+        padding: 8px 10px !important;
+    }
+    .add-batch-form .row {
+        flex-direction: column;
+    }
+    .add-batch-form .col-5,
+    .add-batch-form .col-3,
+    .add-batch-form .col-4,
+    .add-batch-form .col-2 {
+        width: 100%;
+        margin-bottom: 4px;
+    }
+    .login-card {
+        padding: 1.5rem;
+        border-radius: 16px;
+    }
+    .content-container {
+        padding: 0.5rem 0.5rem calc(var(--bottom-nav-height) + 12px);
+    }
+}
+
+/* ── Десктоп ───────────────────────────────────────────────────────── */
+
+@media (min-width: 768px) {
+    .bottom-nav {
+        display: none;
+    }
+    .desktop-nav {
+        display: flex !important;
+    }
+    .content-container {
+        max-width: 1200px;
+        padding: 1rem;
+    }
+    .navbar-kari {
+        height: auto;
+        padding: 0.5rem 1rem;
+    }
 }
