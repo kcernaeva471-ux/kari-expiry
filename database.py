@@ -495,15 +495,15 @@ def get_all_stores_summary() -> list[dict]:
             (store,),
         ).fetchone()["c"]
 
-        # Штуки с партиями (не считая no_expiry)
-        with_batches = db.execute(
-            """SELECT COALESCE(SUM(sp.available), 0) as c FROM store_products sp
-               WHERE sp.store_number = ? AND sp.no_expiry = 0
-               AND EXISTS (SELECT 1 FROM batches b WHERE b.product_id = sp.id)""",
+        # Заполнено = сумма штук во всех партиях (реально внесённые)
+        filled = db.execute(
+            """SELECT COALESCE(SUM(b.quantity), 0) as c
+               FROM store_products sp JOIN batches b ON b.product_id = sp.id
+               WHERE sp.store_number = ? AND sp.no_expiry = 0""",
             (store,),
         ).fetchone()["c"]
 
-        not_filled = total - no_expiry - with_batches
+        not_filled = max(total - no_expiry - filled, 0)
 
         # Категории по количеству штук в партиях
         counts = {"ПРОСРОЧЕН": 0, "Скидка 70%": 0, "Скидка 50%": 0, "В норме": 0}
@@ -561,11 +561,11 @@ def get_store_stats(store_number: str) -> dict:
         (store_number,),
     ).fetchone()["c"]
 
-    # Штуки товаров, у которых есть партии (не считая no_expiry)
-    with_batches = db.execute(
-        """SELECT COALESCE(SUM(sp.available), 0) as c FROM store_products sp
-           WHERE sp.store_number = ? AND sp.no_expiry = 0
-           AND EXISTS (SELECT 1 FROM batches b WHERE b.product_id = sp.id)""",
+    # Заполнено = сумма штук во всех партиях (реально внесённые)
+    filled = db.execute(
+        """SELECT COALESCE(SUM(b.quantity), 0) as c
+           FROM store_products sp JOIN batches b ON b.product_id = sp.id
+           WHERE sp.store_number = ? AND sp.no_expiry = 0""",
         (store_number,),
     ).fetchone()["c"]
 
@@ -584,14 +584,16 @@ def get_store_stats(store_number: str) -> dict:
         cat = classify_days(days)
         counts[cat] += max(br["quantity"] or 1, 1)
 
+    not_filled = max(total - no_expiry - filled, 0)
+
     return {
         "store_number": store_number,
         "total": total,
         "total_articles": total_articles,
-        "not_filled": total - no_expiry - with_batches,
+        "not_filled": not_filled,
         "no_expiry": no_expiry,
         "testers": testers,
-        "filled": with_batches,
+        "filled": filled,
         **counts,
     }
 
