@@ -5,6 +5,7 @@
 <div class="page-header d-flex justify-content-between align-items-center">
     <h5 class="mb-0">Управление центрами</h5>
     <div class="d-flex gap-1">
+        <button class="btn btn-sm btn-outline-secondary" onclick="toggleAll()">Развернуть все</button>
         <button class="btn btn-sm btn-outline-success" onclick="document.getElementById('center-file').click()">
             Загрузить из Excel
         </button>
@@ -29,24 +30,32 @@
 </div>
 
 {% for c in centers %}
-<div class="card mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center py-2">
-        <div>
-            <strong>{{ c.name }}</strong>
-            <span class="badge bg-secondary ms-2">{{ c.store_count }} маг.</span>
-        </div>
-        <div class="d-flex gap-1">
-            <button class="btn btn-sm btn-outline-primary" title="Переименовать"
-                    onclick="renameCenter({{ c.id }}, '{{ c.name }}')">
-                <small>Переименовать</small>
-            </button>
-            <button class="btn btn-sm btn-outline-danger" title="Удалить"
-                    onclick="deleteCenter({{ c.id }}, '{{ c.name }}')">
-                <small>Удалить</small>
-            </button>
+<div class="card mb-2">
+    <div class="card-header py-2" style="cursor:pointer" onclick="toggleCenter({{ c.id }})">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <span class="toggle-icon" id="icon-{{ c.id }}">&#9654;</span>
+                <strong class="ms-1">{{ c.name }}</strong>
+                <span class="badge bg-secondary ms-2">{{ c.store_count }} маг.</span>
+                {% if c.manager %}
+                <span class="badge bg-primary ms-1">ДП: {{ c.manager.manager_name }}</span>
+                {% else %}
+                <span class="badge bg-warning text-dark ms-1">Нет ДП</span>
+                {% endif %}
+            </div>
+            <div class="d-flex gap-1" onclick="event.stopPropagation()">
+                <button class="btn btn-sm btn-outline-primary py-0 px-1"
+                        onclick="renameCenter({{ c.id }}, '{{ c.name }}')">
+                    <small>Переименовать</small>
+                </button>
+                <button class="btn btn-sm btn-outline-danger py-0 px-1"
+                        onclick="deleteCenter({{ c.id }}, '{{ c.name }}')">
+                    <small>Удалить</small>
+                </button>
+            </div>
         </div>
     </div>
-    <div class="card-body p-2">
+    <div class="card-body p-2" id="body-{{ c.id }}" style="display:none;">
         <!-- Директор подразделения -->
         <div class="mb-2 p-2 rounded" style="background: #f8f0f5;">
             {% if c.manager %}
@@ -131,6 +140,30 @@
 {% endif %}
 
 <script>
+function toggleCenter(id) {
+    const body = document.getElementById('body-' + id);
+    const icon = document.getElementById('icon-' + id);
+    if (body.style.display === 'none') {
+        body.style.display = 'block';
+        icon.innerHTML = '&#9660;';
+    } else {
+        body.style.display = 'none';
+        icon.innerHTML = '&#9654;';
+    }
+}
+
+let allExpanded = false;
+function toggleAll() {
+    allExpanded = !allExpanded;
+    document.querySelectorAll('[id^="body-"]').forEach(el => {
+        el.style.display = allExpanded ? 'block' : 'none';
+    });
+    document.querySelectorAll('.toggle-icon').forEach(el => {
+        el.innerHTML = allExpanded ? '&#9660;' : '&#9654;';
+    });
+    event.target.textContent = allExpanded ? 'Свернуть все' : 'Развернуть все';
+}
+
 function showAddCenter() {
     document.getElementById('add-center-form').style.display = 'block';
     document.getElementById('new-center-name').focus();
@@ -248,7 +281,6 @@ function removeManager(centerId) {
     });
 }
 
-// Enter на input добавления центра
 document.getElementById('new-center-name')?.addEventListener('keyup', function(e) {
     if (e.key === 'Enter') addCenter();
 });
