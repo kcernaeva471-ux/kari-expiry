@@ -472,12 +472,33 @@ def create_app() -> Flask:
                     return redirect(url_for("upload"))
 
                 additive = request.form.get("additive") == "on"
+
+                # Защита: если файл содержит мало строк по сравнению с БД,
+                # и additive=False — принудительно включаем additive
+                if not additive:
+                    db = database.get_db()
+                    db_count = db.execute(
+                        "SELECT COUNT(*) FROM store_products WHERE available > 0"
+                    ).fetchone()[0]
+                    file_stores = set(r["store"] for r in stock_rows)
+                    db_stores = db.execute(
+                        "SELECT COUNT(DISTINCT store_number) FROM store_products WHERE available > 0"
+                    ).fetchone()[0]
+                    # Если файл покрывает менее 50% магазинов — скорее всего частичный
+                    if db_stores > 0 and len(file_stores) < db_stores * 0.5:
+                        additive = True
+                        flash(
+                            f"Автозащита: файл содержит только {len(file_stores)} из {db_stores} магазинов. "
+                            f"Включён режим «Дополнительный импорт» чтобы не обнулить остальные.",
+                            "warning",
+                        )
+
                 result = database.import_stock(
                     stock_rows, catalog,
                     filename=stock_file.filename,
                     additive=additive,
                 )
-                mode = "Доп. импорт" if additive else "Импорт"
+                mode = "Доп. импорт" if additive else "Полный импорт"
                 flash(
                     f"{mode}: обновлено {result['updated']}, "
                     f"добавлено {result['added']}, "
@@ -502,7 +523,20 @@ def create_app() -> Flask:
                     os.unlink(catalog_path)
 
         last_snapshot = database.get_last_snapshot()
-        return render_template("upload.html", last_snapshot=last_snapshot)
+        # Статистика текущей БД для информационного блока
+        db = database.get_db()
+        db_stats = {
+            "stores": db.execute(
+                "SELECT COUNT(DISTINCT store_number) FROM store_products WHERE available > 0"
+            ).fetchone()[0],
+            "products_active": db.execute(
+                "SELECT COUNT(*) FROM store_products WHERE available > 0"
+            ).fetchone()[0],
+            "products_total": db.execute(
+                "SELECT COUNT(*) FROM store_products"
+            ).fetchone()[0],
+        }
+        return render_template("upload.html", last_snapshot=last_snapshot, db_stats=db_stats)
 
     @app.route("/api/undo-import", methods=["POST"])
     @login_required

@@ -6,7 +6,7 @@
 
 <div class="card shadow-sm" style="border-radius: var(--radius);">
     <div class="card-body p-3">
-        <form method="POST" enctype="multipart/form-data">
+        <form method="POST" enctype="multipart/form-data" id="import-form" onsubmit="return confirmImport()">
             <div class="mb-3">
                 <label class="form-label fw-bold">Файл остатков (.xlsx) <span class="text-danger">*</span></label>
                 <input type="file" name="stock_file" class="form-control"
@@ -20,16 +20,20 @@
                 <div class="form-text">Необязательно. Добавляет бренд и группу к товарам.</div>
             </div>
             <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" name="additive" id="additive-check">
+                <input class="form-check-input" type="checkbox" name="additive" id="additive-check" checked>
                 <label class="form-check-label fw-bold" for="additive-check">
-                    Дополнительный импорт
+                    Дополнительный импорт (рекомендуется)
                 </label>
                 <div class="form-text">
                     Только добавит/обновит товары из файла. <b>Не обнулит</b> товары, которых нет в файле.
                     Используйте для загрузки отдельных групп (b38, b46 и др.)
                 </div>
             </div>
-            <div class="alert alert-info small mb-3">
+            <div class="alert alert-warning small mb-3" id="full-import-warning" style="display:none;">
+                <b>Полный импорт:</b> товары, которых НЕТ в файле, будут обнулены!
+                Используйте только если загружаете ПОЛНЫЙ файл остатков по ВСЕМ магазинам.
+            </div>
+            <div class="alert alert-info small mb-3" id="additive-info">
                 <b>Безопасный импорт:</b> обновит количества, добавит новые товары.
                 Существующие партии и даты сроков годности сохранятся.
             </div>
@@ -50,6 +54,11 @@
             Обновлено: {{ last_snapshot.products_updated }},
             добавлено: {{ last_snapshot.products_added }},
             обнулено: {{ last_snapshot.products_zeroed }}
+            {% if last_snapshot.products_zeroed > 0 %}
+            <span class="text-danger fw-bold">(полный импорт)</span>
+            {% else %}
+            <span class="text-success">(доп. импорт)</span>
+            {% endif %}
         </div>
         {% if last_snapshot.products_zeroed > 0 or last_snapshot.products_added > 0 %}
         <button class="btn btn-sm btn-outline-danger" onclick="undoImport({{ last_snapshot.id }})">
@@ -60,7 +69,47 @@
 </div>
 {% endif %}
 
+{% if db_stats %}
+<p class="section-label mt-3">СОСТОЯНИЕ БАЗЫ</p>
+<div class="card shadow-sm" style="border-radius: var(--radius);">
+    <div class="card-body p-3 small">
+        Магазинов: <b>{{ db_stats.stores }}</b>,
+        товаров с остатком: <b>{{ db_stats.products_active }}</b>,
+        всего записей: <b>{{ db_stats.products_total }}</b>
+    </div>
+</div>
+{% endif %}
+
 <script>
+// Переключение предупреждений при смене галочки
+var addCheck = document.getElementById('additive-check');
+var fullWarn = document.getElementById('full-import-warning');
+var addInfo = document.getElementById('additive-info');
+
+function toggleWarning() {
+    if (addCheck.checked) {
+        fullWarn.style.display = 'none';
+        addInfo.style.display = '';
+    } else {
+        fullWarn.style.display = '';
+        addInfo.style.display = 'none';
+    }
+}
+addCheck.addEventListener('change', toggleWarning);
+
+function confirmImport() {
+    if (!addCheck.checked) {
+        return confirm(
+            'ВНИМАНИЕ!\n\n' +
+            'Полный импорт ОБНУЛИТ все товары, которых НЕТ в загружаемом файле.\n\n' +
+            'Если вы загружаете файл только по отдельным группам (b38, b46 и др.), ' +
+            'ОБЯЗАТЕЛЬНО включите галочку «Дополнительный импорт»!\n\n' +
+            'Продолжить полный импорт?'
+        );
+    }
+    return true;
+}
+
 function undoImport(snapshotId) {
     if (!confirm('Отменить последний импорт? Все изменения будут откачены.')) return;
     fetch('/api/undo-import', {
@@ -69,7 +118,7 @@ function undoImport(snapshotId) {
         body: JSON.stringify({snapshot_id: snapshotId})
     }).then(r => r.json()).then(d => {
         if (d.ok) {
-            alert('Импорт отменён! Восстановлено: ' + d.restored + ', удалено: ' + d.deleted);
+            alert('Импорт отменён!\nВосстановлено: ' + d.restored + '\nОбнулено: ' + d.deleted);
             location.reload();
         } else {
             alert(d.error || 'Ошибка');
