@@ -4,7 +4,7 @@
 
 <div class="page-header">
     <h5>Магазин {{ store_number }}</h5>
-    <span class="text-muted small">Товаров: {{ stats.total }}</span>
+    <span class="text-muted small">{{ stats.total }} шт. ({{ stats.total_articles }} арт.)</span>
 </div>
 
 <!-- Счётчики -->
@@ -13,7 +13,7 @@
         <a href="/store/{{ store_number }}?filter=ПРОСРОЧЕН" class="text-decoration-none">
             <div class="summary-card" style="background: #f8d7da;">
                 <div class="count text-danger">{{ stats.get('ПРОСРОЧЕН', 0) }}</div>
-                <small>Просроч.</small>
+                <small>Просроч. шт.</small>
             </div>
         </a>
     </div>
@@ -21,7 +21,7 @@
         <a href="/store/{{ store_number }}?filter=Скидка 70%25" class="text-decoration-none">
             <div class="summary-card" style="background: #ffe0b2;">
                 <div class="count" style="color: #e65100;">{{ stats.get('Скидка 70%', 0) }}</div>
-                <small>70%</small>
+                <small>70% шт.</small>
             </div>
         </a>
     </div>
@@ -29,7 +29,7 @@
         <a href="/store/{{ store_number }}?filter=Скидка 50%25" class="text-decoration-none">
             <div class="summary-card" style="background: #fff9c4;">
                 <div class="count" style="color: #f57f17;">{{ stats.get('Скидка 50%', 0) }}</div>
-                <small>50%</small>
+                <small>50% шт.</small>
             </div>
         </a>
     </div>
@@ -37,7 +37,7 @@
         <a href="/store/{{ store_number }}?filter=В норме" class="text-decoration-none">
             <div class="summary-card" style="background: #c8e6c9;">
                 <div class="count text-success">{{ stats.get('В норме', 0) }}</div>
-                <small>Норма</small>
+                <small>Норма шт.</small>
             </div>
         </a>
     </div>
@@ -58,7 +58,7 @@
     </a>
     <a href="/store/{{ store_number }}?filter=Не заполнен"
        class="filter-chip {{ 'bg-secondary text-white border-secondary' if current_filter == 'Не заполнен' else 'text-secondary border-secondary' }}">
-        Не заполнен ({{ stats.not_filled }})
+        Не заполнен ({{ stats.not_filled }} шт.)
     </a>
     <a href="/store/{{ store_number }}?filter=urgent"
        class="filter-chip {{ 'bg-danger text-white border-danger' if current_filter == 'urgent' else 'text-danger border-danger' }}">

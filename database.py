@@ -462,12 +462,11 @@ def get_valid_stores() -> list[str]:
 
 
 def get_all_stores_summary() -> list[dict]:
-    """Сводка по всем магазинам с информацией о центрах."""
+    """Сводка по всем магазинам (по количеству штук) с информацией о центрах."""
     db = get_db()
     today = date.today()
     result = []
 
-    # Берём магазины из БД с привязкой к центрам (без admin и ДП)
     stores_rows = db.execute("""
         SELECT sa.store_number, sa.center_id, COALESCE(c.name, '') as center_name
         FROM store_access sa
@@ -477,7 +476,6 @@ def get_all_stores_summary() -> list[dict]:
     """).fetchall()
 
     if not stores_rows:
-        # Fallback на конфиг
         stores_rows = [{"store_number": s, "center_id": None, "center_name": ""} for s in config.VALID_STORES]
 
     for srow in stores_rows:
@@ -485,45 +483,42 @@ def get_all_stores_summary() -> list[dict]:
         center_id = srow["center_id"] if isinstance(srow, dict) else srow[1]
         center_name = srow["center_name"] if isinstance(srow, dict) else srow[2]
 
+        # Общее количество штук
         total = db.execute(
-            "SELECT COUNT(*) as c FROM store_products WHERE store_number = ?",
+            "SELECT COALESCE(SUM(available), 0) as c FROM store_products WHERE store_number = ?",
             (store,),
         ).fetchone()["c"]
 
+        # Без срока — штуки
         no_expiry = db.execute(
-            "SELECT COUNT(*) as c FROM store_products WHERE store_number = ? AND no_expiry = 1",
+            "SELECT COALESCE(SUM(available), 0) as c FROM store_products WHERE store_number = ? AND no_expiry = 1",
             (store,),
         ).fetchone()["c"]
 
-        # Товары с партиями
+        # Штуки с партиями (не считая no_expiry)
         with_batches = db.execute(
-            """SELECT COUNT(DISTINCT sp.id) as c FROM store_products sp
-               JOIN batches b ON b.product_id = sp.id
-               WHERE sp.store_number = ?""",
+            """SELECT COALESCE(SUM(sp.available), 0) as c FROM store_products sp
+               WHERE sp.store_number = ? AND sp.no_expiry = 0
+               AND EXISTS (SELECT 1 FROM batches b WHERE b.product_id = sp.id)""",
             (store,),
         ).fetchone()["c"]
 
         not_filled = total - no_expiry - with_batches
 
-        # Считаем по категориям (товар в каждой категории, где есть хотя бы 1 партия)
+        # Категории по количеству штук в партиях
         counts = {"ПРОСРОЧЕН": 0, "Скидка 70%": 0, "Скидка 50%": 0, "В норме": 0}
         batch_rows = db.execute(
-            """SELECT sp.id, b.expiry_date
+            """SELECT b.expiry_date, b.quantity
                FROM store_products sp
                JOIN batches b ON b.product_id = sp.id
                WHERE sp.store_number = ?""",
             (store,),
         ).fetchall()
 
-        product_cats = {}
         for br in batch_rows:
             exp = date.fromisoformat(br["expiry_date"])
             days = (exp - today).days
-            product_cats.setdefault(br["id"], set()).add(classify_days(days))
-
-        for cats in product_cats.values():
-            for cat in cats:
-                counts[cat] += 1
+            counts[classify_days(days)] += max(br["quantity"] or 1, 1)
 
         result.append({
             "store_number": store,
@@ -539,17 +534,25 @@ def get_all_stores_summary() -> list[dict]:
 
 
 def get_store_stats(store_number: str) -> dict:
-    """Счётчики для одного магазина."""
+    """Счётчики для одного магазина (по количеству штук, не по артикулам)."""
     db = get_db()
     today = date.today()
 
+    # Общее количество штук
     total = db.execute(
+        "SELECT COALESCE(SUM(available), 0) as c FROM store_products WHERE store_number = ?",
+        (store_number,),
+    ).fetchone()["c"]
+
+    # Количество артикулов (для отображения)
+    total_articles = db.execute(
         "SELECT COUNT(*) as c FROM store_products WHERE store_number = ?",
         (store_number,),
     ).fetchone()["c"]
 
+    # Без срока годности — штуки
     no_expiry = db.execute(
-        "SELECT COUNT(*) as c FROM store_products WHERE store_number = ? AND no_expiry = 1",
+        "SELECT COALESCE(SUM(available), 0) as c FROM store_products WHERE store_number = ? AND no_expiry = 1",
         (store_number,),
     ).fetchone()["c"]
 
@@ -558,34 +561,33 @@ def get_store_stats(store_number: str) -> dict:
         (store_number,),
     ).fetchone()["c"]
 
+    # Штуки товаров, у которых есть партии (не считая no_expiry)
     with_batches = db.execute(
-        """SELECT COUNT(DISTINCT sp.id) as c FROM store_products sp
-           JOIN batches b ON b.product_id = sp.id WHERE sp.store_number = ?""",
+        """SELECT COALESCE(SUM(sp.available), 0) as c FROM store_products sp
+           WHERE sp.store_number = ? AND sp.no_expiry = 0
+           AND EXISTS (SELECT 1 FROM batches b WHERE b.product_id = sp.id)""",
         (store_number,),
     ).fetchone()["c"]
 
+    # Категории по количеству штук в партиях
     counts = {"ПРОСРОЧЕН": 0, "Скидка 70%": 0, "Скидка 50%": 0, "В норме": 0}
     batch_rows = db.execute(
-        """SELECT sp.id, b.expiry_date
+        """SELECT b.expiry_date, b.quantity
            FROM store_products sp JOIN batches b ON b.product_id = sp.id
            WHERE sp.store_number = ?""",
         (store_number,),
     ).fetchall()
 
-    product_cats = {}
     for br in batch_rows:
         exp = date.fromisoformat(br["expiry_date"])
         days = (exp - today).days
         cat = classify_days(days)
-        product_cats.setdefault(br["id"], set()).add(cat)
-
-    for cats in product_cats.values():
-        for cat in cats:
-            counts[cat] += 1
+        counts[cat] += max(br["quantity"] or 1, 1)
 
     return {
         "store_number": store_number,
         "total": total,
+        "total_articles": total_articles,
         "not_filled": total - no_expiry - with_batches,
         "no_expiry": no_expiry,
         "testers": testers,
