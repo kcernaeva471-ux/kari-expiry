@@ -320,29 +320,96 @@
 
 <!-- Сводка активности -->
 <p class="section-label">АКТИВНОСТЬ ПО МАГАЗИНАМ</p>
+
+{# Собираем map активности для быстрого доступа #}
+{% set summary_map = {} %}
+{% for s in summary %}
+    {% if summary_map.update({s.store_number: s}) %}{% endif %}
+{% endfor %}
+
+{# Считаем статистику #}
+{% set act_ns = namespace(active=0, entered=0, inactive=0) %}
+{% for sc in stores_completion %}
+    {% set s = summary_map.get(sc.store_number) %}
+    {% if s and s.logins > 0 %}
+        {% set act_ns.active = act_ns.active + 1 %}
+        {% if s.batches_added > 0 or s.no_expiry_set > 0 %}
+            {% set act_ns.entered = act_ns.entered + 1 %}
+        {% endif %}
+    {% else %}
+        {% set act_ns.inactive = act_ns.inactive + 1 %}
+    {% endif %}
+{% endfor %}
+
+<div class="row g-2 mb-3">
+    <div class="col-4">
+        <div class="summary-card" style="background: #e8f5e9;">
+            <div class="count text-success" style="font-size: 1.2rem;">{{ act_ns.active }}</div>
+            <small>Заходили</small>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="summary-card" style="background: #e3f2fd;">
+            <div class="count" style="font-size: 1.2rem; color: #1565c0;">{{ act_ns.entered }}</div>
+            <small>Вносили</small>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="summary-card" style="background: #fce4ec;">
+            <div class="count text-danger" style="font-size: 1.2rem;">{{ act_ns.inactive }}</div>
+            <small>Не заходили</small>
+        </div>
+    </div>
+</div>
+
 <div class="table-modern mb-4">
 <div class="table-responsive">
-    <table class="table table-sm mb-0">
+    <table class="table table-sm mb-0 align-middle">
         <thead>
             <tr>
                 <th>Магазин</th>
-                <th>Входы</th>
-                <th>Партии</th>
-                <th class="d-none d-sm-table-cell">Без срока</th>
-                <th>Активность</th>
+                <th class="text-center">Заходили</th>
+                <th class="text-center">Вносили</th>
+                <th class="text-center">Время</th>
             </tr>
         </thead>
         <tbody>
-            {% for s in summary %}
+            {% for sc in stores_completion %}
+            {% set s = summary_map.get(sc.store_number) %}
             <tr>
                 <td>
-                    <a href="/activity?store={{ s.store_number }}" class="fw-bold">{{ s.store_number }}</a>
+                    <a href="/activity?store={{ sc.store_number }}" class="fw-bold">{{ sc.store_number }}</a>
                 </td>
-                <td>{{ s.logins }}</td>
-                <td>{{ s.batches_added }}</td>
-                <td class="d-none d-sm-table-cell">{{ s.no_expiry_set }}</td>
-                <td>
-                    <small>{{ s.last_activity[:16] | replace('T', ' ') if s.last_activity else '—' }}</small>
+                <td class="text-center">
+                    {% if s and s.logins > 0 %}
+                        <span style="color: #2e7d32; font-size: 1.1rem;">✓</span>
+                    {% else %}
+                        <span class="text-muted">✗</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if s and (s.batches_added > 0 or s.no_expiry_set > 0) %}
+                        <span style="color: #1565c0; font-size: 1.1rem;">✓</span>
+                    {% elif s and s.logins > 0 %}
+                        <span class="text-muted">✗</span>
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if s and s.duration_minutes and s.duration_minutes > 0 %}
+                        <small class="fw-bold">
+                        {% if s.duration_minutes >= 60 %}
+                            {{ (s.duration_minutes // 60) }}ч {{ (s.duration_minutes % 60) }}м
+                        {% else %}
+                            {{ s.duration_minutes }}м
+                        {% endif %}
+                        </small>
+                    {% elif s and s.logins > 0 %}
+                        <small class="text-muted">&lt;1м</small>
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}
@@ -350,23 +417,6 @@
     </table>
 </div>
 </div>
-
-{% set active_stores = summary | map(attribute='store_number') | list %}
-{% set all_stores = stores_completion | map(attribute='store_number') | list %}
-{% set inactive = [] %}
-{% for store in all_stores %}
-    {% if store not in active_stores %}
-        {% if inactive.append(store) %}{% endif %}
-    {% endif %}
-{% endfor %}
-{% if inactive %}
-<div class="alert alert-warning py-2 small">
-    <b>Не заходили:</b>
-    {% for store in inactive %}
-        <span class="badge bg-secondary">{{ store }}</span>
-    {% endfor %}
-</div>
-{% endif %}
 
 <!-- Фильтр -->
 <div class="d-flex gap-2 mb-2 align-items-center">

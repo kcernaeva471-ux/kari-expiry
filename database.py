@@ -739,7 +739,7 @@ def get_activity_log(limit: int = 200, store_filter: str = None) -> list[dict]:
 
 
 def get_activity_summary() -> list[dict]:
-    """Сводка активности по магазинам: последний вход, кол-во действий."""
+    """Сводка активности по магазинам: вход, внесение данных, время работы."""
     db = get_db()
     rows = db.execute("""
         SELECT store_number,
@@ -747,7 +747,9 @@ def get_activity_summary() -> list[dict]:
                SUM(CASE WHEN action = 'login' THEN 1 ELSE 0 END) as logins,
                SUM(CASE WHEN action = 'add_batch' THEN 1 ELSE 0 END) as batches_added,
                SUM(CASE WHEN action = 'no_expiry' THEN 1 ELSE 0 END) as no_expiry_set,
-               MAX(created_at) as last_activity
+               MAX(created_at) as last_activity,
+               MIN(created_at) as first_activity,
+               CAST((julianday(MAX(created_at)) - julianday(MIN(created_at))) * 24 * 60 AS INTEGER) as duration_minutes
         FROM activity_log
         WHERE store_number != 'admin'
         GROUP BY store_number
