@@ -569,7 +569,7 @@ def create_app() -> Flask:
             for ridx, row in enumerate(all_rows[:5]):
                 for cidx, cell in enumerate(row):
                     val = str(cell or "").strip().lower()
-                    if val in ("центр", "center"):
+                    if val in ("центр", "center", "подразделение"):
                         headers["center"] = cidx
                     elif val in ("магазин", "store", "номер", "номер магазина"):
                         headers["store"] = cidx
