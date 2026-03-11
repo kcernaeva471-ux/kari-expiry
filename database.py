@@ -744,7 +744,8 @@ def import_centers_from_rows(rows: list[dict]) -> dict:
     """
     Массовый импорт центров и магазинов из Excel.
     rows: [{"center": "Центр Восток", "store": "10065", "address": "ул. Ленина 5"}, ...]
-    Возвращает {"centers_created": N, "stores_added": N}.
+    Магазины, которых нет в файле, удаляются из центров (закрытые).
+    Возвращает {"centers_created": N, "stores_added": N, "stores_removed": N}.
     """
     db = get_db()
     centers_created = 0
@@ -755,6 +756,9 @@ def import_centers_from_rows(rows: list[dict]) -> dict:
     for row in db.execute("SELECT id, name FROM centers").fetchall():
         center_cache[row["name"]] = row["id"]
 
+    # Собираем все магазины из файла
+    file_stores = set()
+
     for row in rows:
         center_name = (row.get("center") or "").strip()
         store_number = (row.get("store") or "").strip()
@@ -762,6 +766,8 @@ def import_centers_from_rows(rows: list[dict]) -> dict:
 
         if not center_name or not store_number:
             continue
+
+        file_stores.add(store_number)
 
         # Создаём центр если не существует
         if center_name not in center_cache:
@@ -789,8 +795,18 @@ def import_centers_from_rows(rows: list[dict]) -> dict:
             )
         stores_added += 1
 
+    # Удаляем магазины, которых нет в файле (закрытые)
+    all_db_stores = db.execute(
+        "SELECT store_number FROM store_access WHERE store_number != 'admin'"
+    ).fetchall()
+    stores_removed = 0
+    for s in all_db_stores:
+        if s["store_number"] not in file_stores:
+            db.execute("DELETE FROM store_access WHERE store_number = ?", (s["store_number"],))
+            stores_removed += 1
+
     db.commit()
-    return {"centers_created": centers_created, "stores_added": stores_added}
+    return {"centers_created": centers_created, "stores_added": stores_added, "stores_removed": stores_removed}
 
 
 def remove_store(store_number: str):

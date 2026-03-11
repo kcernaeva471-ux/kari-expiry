@@ -191,7 +191,9 @@ function importCentersFile(input) {
     fetch('/api/center/import', {method: 'POST', body: fd})
         .then(r => r.json()).then(d => {
             if (d.ok) {
-                alert(`Импорт: ${d.centers_created} центров, ${d.stores_added} магазинов`);
+                let msg = `Импорт: ${d.centers_created} центров, ${d.stores_added} магазинов`;
+                if (d.stores_removed > 0) msg += `, удалено ${d.stores_removed} закрытых`;
+                alert(msg);
                 location.reload();
             } else alert(d.error || 'Ошибка');
         });
