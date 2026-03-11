@@ -12,52 +12,49 @@
     <table class="table table-sm align-middle mb-0">
         <thead>
             <tr>
-                <th>Маг.</th>
+                <th>Магазин</th>
                 <th class="text-end">Всего</th>
-                <th class="text-end d-none d-sm-table-cell">Запол.</th>
-                <th class="text-end d-none d-sm-table-cell">Б/срока</th>
-                <th class="text-end d-none d-sm-table-cell">Тест.</th>
-                <th class="text-end">Не вн.</th>
-                <th>%</th>
+                <th class="text-end d-none d-sm-table-cell">Заполнено</th>
+                <th class="text-end d-none d-sm-table-cell">Без срока</th>
+                <th class="text-end d-none d-sm-table-cell">Тестеры</th>
+                <th class="text-end">Остаток</th>
+                <th style="min-width: 60px;">Прогресс</th>
             </tr>
         </thead>
         <tbody>
-            {% set cns = namespace(current_center='', c_total=0, c_filled=0, c_noexp=0, c_notfilled=0, c_testers=0) %}
+            {# --- Предрасчёт итогов по центрам --- #}
+            {% set center_totals = {} %}
+            {% for s in stores_completion %}
+            {% if s.total > 0 %}
+                {% set cname = s.get('center_name', '') or 'Без центра' %}
+                {% set filled = s.total - s.not_filled - s.no_expiry %}
+                {% if cname not in center_totals %}
+                    {% if center_totals.update({cname: {'total':0,'filled':0,'noexp':0,'notfilled':0,'testers':0}}) %}{% endif %}
+                {% endif %}
+                {% set ct = center_totals[cname] %}
+                {% if ct.update({'total': ct.total + s.total, 'filled': ct.filled + filled, 'noexp': ct.noexp + s.no_expiry, 'notfilled': ct.notfilled + s.not_filled, 'testers': ct.testers + s.get('testers',0)}) %}{% endif %}
+            {% endif %}
+            {% endfor %}
+
+            {# --- Отрисовка: заголовок центра + итоги (видны) → строки магазинов (скрыты) --- #}
+            {% set cns = namespace(current_center='') %}
             {% for s in stores_completion %}
             {% if s.total > 0 %}
             {% set cname = s.get('center_name', '') or 'Без центра' %}
 
-            {# Новый центр — показать итог предыдущего #}
             {% if cname != cns.current_center %}
-                {% if cns.current_center and cns.c_total > 0 %}
-                {% set c_done = cns.c_filled + cns.c_noexp %}
-                {% set c_pct = ((c_done / cns.c_total) * 100) | int %}
-                <tr class="center-summary" style="background: #f0e6ed; font-weight: 700;">
-                    <td>Итого</td>
-                    <td class="text-end">{{ cns.c_total }}</td>
-                    <td class="text-end d-none d-sm-table-cell">{{ cns.c_filled }}</td>
-                    <td class="text-end d-none d-sm-table-cell">{{ cns.c_noexp }}</td>
-                    <td class="text-end d-none d-sm-table-cell" style="color: #e91e90;">{{ cns.c_testers }}</td>
-                    <td class="text-end" style="color: #991E66;">{{ cns.c_notfilled }}</td>
-                    <td>
-                        <div class="progress" style="height: 20px;">
-                            <div class="progress-bar {{ 'bg-success' if c_pct >= 80 else ('bg-warning text-dark' if c_pct >= 30 else '') }}"
-                                 style="width: {{ c_pct }}%;">{{ c_pct }}%</div>
-                        </div>
-                    </td>
-                </tr>
-                {% endif %}
                 {% set cns.current_center = cname %}
-                {% set cns.c_total = 0 %}
-                {% set cns.c_filled = 0 %}
-                {% set cns.c_noexp = 0 %}
-                {% set cns.c_notfilled = 0 %}
-                {% set cns.c_testers = 0 %}
-                <tr class="center-header" style="cursor: pointer; background: #f0f0f0;"
+                {% set ct = center_totals.get(cname, {}) %}
+                {% set c_done = ct.get('filled',0) + ct.get('noexp',0) %}
+                {% set c_pct = ((c_done / ct.get('total',1)) * 100) | int if ct.get('total',0) > 0 else 0 %}
+                <tr class="center-header" style="cursor: pointer;"
                     data-cid="{{ s.center_id or 0 }}">
-                    <td colspan="99" class="fw-bold small text-muted py-1">
-                        <span class="center-arrow">▼</span>
-                        📁 {{ cname }}
+                    <td colspan="99" style="background: var(--kari-purple); color: #fff; padding: 8px 10px;">
+                        <span class="center-arrow">▶</span>
+                        <b>{{ cname }}</b>
+                        <span style="opacity:0.8; margin-left: 6px; font-size: 0.75rem;">
+                            {{ ct.get('total',0) }} шт · остаток {{ ct.get('notfilled',0) }} · {{ c_pct }}%
+                        </span>
                     </td>
                 </tr>
             {% endif %}
@@ -65,12 +62,7 @@
             {% set filled = s.total - s.not_filled - s.no_expiry %}
             {% set done = filled + s.no_expiry %}
             {% set pct = ((done / s.total) * 100) | int if s.total > 0 else 0 %}
-            {% set cns.c_total = cns.c_total + s.total %}
-            {% set cns.c_filled = cns.c_filled + filled %}
-            {% set cns.c_noexp = cns.c_noexp + s.no_expiry %}
-            {% set cns.c_notfilled = cns.c_notfilled + s.not_filled %}
-            {% set cns.c_testers = cns.c_testers + s.get('testers', 0) %}
-            <tr class="center-row" data-cid="{{ s.center_id or 0 }}">
+            <tr class="center-row" data-cid="{{ s.center_id or 0 }}" style="display:none;">
                 <td>
                     <a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a>
                 </td>
@@ -93,7 +85,7 @@
                 </td>
                 <td>
                     <div class="progress" style="height: 18px;">
-                        <div class="progress-bar {{ 'bg-success' if pct >= 80 else ('bg-warning text-dark' if pct >= 30 else '') }}"
+                        <div class="progress-bar {{ 'bg-success' if pct >= 80 else ('bg-warning text-dark' if pct >= 30 else 'bg-danger') }}"
                              style="width: {{ pct }}%;" role="progressbar">
                             {{ pct }}%
                         </div>
@@ -102,26 +94,6 @@
             </tr>
             {% endif %}
             {% endfor %}
-
-            {# Итог последнего центра #}
-            {% if cns.c_total > 0 %}
-            {% set c_done = cns.c_filled + cns.c_noexp %}
-            {% set c_pct = ((c_done / cns.c_total) * 100) | int %}
-            <tr class="center-summary" style="background: #f0e6ed; font-weight: 700;">
-                <td>Итого</td>
-                <td class="text-end">{{ cns.c_total }}</td>
-                <td class="text-end d-none d-sm-table-cell">{{ cns.c_filled }}</td>
-                <td class="text-end d-none d-sm-table-cell">{{ cns.c_noexp }}</td>
-                <td class="text-end d-none d-sm-table-cell" style="color: #e91e90;">{{ cns.c_testers }}</td>
-                <td class="text-end" style="color: #991E66;">{{ cns.c_notfilled }}</td>
-                <td>
-                    <div class="progress" style="height: 20px;">
-                        <div class="progress-bar {{ 'bg-success' if c_pct >= 80 else ('bg-warning text-dark' if c_pct >= 30 else '') }}"
-                             style="width: {{ c_pct }}%;">{{ c_pct }}%</div>
-                    </div>
-                </td>
-            </tr>
-            {% endif %}
         </tbody>
     </table>
 </div>
@@ -144,7 +116,7 @@
 
 <!-- Потери в деньгах -->
 <div class="d-flex justify-content-between align-items-center mb-2">
-    <p class="section-label mb-0">ПОТЕРИ В ДЕНЬГАХ</p>
+    <p class="section-label mb-0">РОЗНИЧНАЯ СТОИМОСТЬ</p>
     <div class="d-flex align-items-center gap-2">
         <small class="text-muted">Цены: {{ prices_count.fetched }}/{{ prices_count.total }}</small>
         <button class="btn btn-sm" style="border: 1px solid #991E66; color: #991E66;" id="btn-fetch-prices" onclick="fetchPrices()">
@@ -197,7 +169,7 @@
     <div class="col-6 col-sm">
         <div class="summary-card" style="background: #e8e8e8;">
             <div class="count" style="font-size: 1.2rem; color: #333;">{{ '{:,.0f}'.format(losses.totals.total).replace(',', ' ') }} ₽</div>
-            <small>Итого потери</small>
+            <small>Итого стоимость</small>
         </div>
     </div>
     <div class="col-6 col-sm">
@@ -214,12 +186,12 @@
     <table class="table table-sm align-middle mb-0">
         <thead>
             <tr>
-                <th>Маг.</th>
-                <th class="text-end">Проср.</th>
+                <th>Магазин</th>
+                <th class="text-end">Просрочка</th>
                 <th class="text-end d-none d-sm-table-cell">70%</th>
                 <th class="text-end d-none d-sm-table-cell">50%</th>
                 <th class="text-end fw-bold">Итого</th>
-                <th>%</th>
+                <th style="min-width: 60px;">Заполнено</th>
             </tr>
         </thead>
         <tbody>
@@ -259,7 +231,7 @@
 
 {% else %}
 <div class="alert alert-secondary py-2 small mb-4">
-    Нет данных о потерях. Нажмите «Обновить цены» чтобы загрузить цены с kari.com.
+    Нет данных о стоимости. Нажмите «Обновить цены» чтобы загрузить цены с kari.com.
 </div>
 {% endif %}
 
@@ -323,12 +295,12 @@
     <table class="table table-sm align-middle mb-0">
         <thead>
             <tr>
-                <th>Маг.</th>
-                <th class="text-end">Прод.</th>
-                <th class="text-end d-none d-sm-table-cell">Обычн.</th>
+                <th>Магазин</th>
+                <th class="text-end">Продано</th>
+                <th class="text-end d-none d-sm-table-cell">Обычные</th>
                 <th class="text-end d-none d-sm-table-cell">50%</th>
                 <th class="text-end">70%</th>
-                <th class="text-end">Проср.</th>
+                <th class="text-end">Просрочка</th>
             </tr>
         </thead>
         <tbody>
@@ -359,11 +331,11 @@
     <table class="table table-sm mb-0">
         <thead>
             <tr>
-                <th>Маг.</th>
+                <th>Магазин</th>
                 <th>Входы</th>
-                <th>Партий</th>
-                <th class="d-none d-sm-table-cell">Б/срока</th>
-                <th>Последняя</th>
+                <th>Партии</th>
+                <th class="d-none d-sm-table-cell">Без срока</th>
+                <th>Активность</th>
             </tr>
         </thead>
         <tbody>
@@ -462,9 +434,12 @@ function toggleCenter(headerEl) {
     if (arrow) arrow.textContent = visible ? '▶' : '▼';
 }
 
+// Центры: по клику раскрываем/сворачиваем
 document.querySelectorAll('.center-header').forEach(function(tr) {
     tr.addEventListener('click', function() { toggleCenter(tr); });
 });
+
+// Центры свёрнуты по умолчанию (строки уже скрыты в HTML, стрелки ▶)
 
 function fetchPrices() {
     var btn = document.getElementById('btn-fetch-prices');

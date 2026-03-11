@@ -592,14 +592,18 @@ body {
 
 .progress {
     border-radius: 10px;
-    background: #eee;
-    overflow: hidden;
+    background: #e0e0e0;
+    overflow: visible;
+    position: relative;
 }
 .progress-bar {
     border-radius: 10px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    background: var(--kari-pink);
+    font-size: 0.68rem;
+    font-weight: 700;
+    background: var(--kari-purple);
+    color: #fff;
+    min-width: 28px;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.2);
 }
 
 /* ── Алерты ────────────────────────────────────────────────────────── */
