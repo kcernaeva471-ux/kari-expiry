@@ -688,4 +688,33 @@ def create_app() -> Flask:
         database.update_store_code(store_number, new_code)
         return jsonify({"ok": True})
 
+    @app.route("/admin/setup-managers")
+    @login_required
+    @admin_required
+    def admin_setup_managers():
+        """Одноразовая настройка ДП для всех центров."""
+        managers = [
+            ("1", "Елена Гуреева", "79032645266"),
+            ("2", "Светлана Бухтиярова", "79169163008"),
+            ("3", "Марина Алексеева", "79067439159"),
+            ("4", "Елена Катулина", "79032557300"),
+            ("5", "Анастасия Утешева", "79624045128"),
+            ("6", "Сергей Калашник", "79250201313"),
+            ("7", "Анастасия Илясова", "79057106646"),
+        ]
+        db = database.get_db()
+        added = 0
+        for center_num, name, phone in managers:
+            # Ищем центр по номеру в названии
+            row = db.execute(
+                "SELECT id FROM centers WHERE name LIKE ? OR name LIKE ? OR name = ?",
+                (f"%{center_num}", f"% {center_num}", center_num),
+            ).fetchone()
+            if row:
+                database.set_center_manager(row["id"], phone, name, "1234")
+                added += 1
+        database.log_activity("admin", "setup_managers", f"Назначено {added} ДП")
+        flash(f"Назначено {added} директоров подразделений (код: 1234)", "success")
+        return redirect(url_for("centers"))
+
     return app
