@@ -172,10 +172,14 @@ def setup_store_access():
 
 # ── Импорт данных ─────────────────────────────────────────────────────────
 
-def import_stock(stock_rows: list, catalog: dict, filename: str = "") -> dict:
+def import_stock(stock_rows: list, catalog: dict, filename: str = "",
+                  additive: bool = False) -> dict:
     """
     Безопасный импорт остатков — обновляет количества, не удаляет партии.
     Отслеживает изменения для расчёта продаж.
+
+    additive=True: только добавляет/обновляет товары из файла, НЕ обнуляет остальные.
+    additive=False (по умолчанию): товары, отсутствующие в файле, обнуляются.
 
     Возвращает dict: {updated, added, zeroed, total_changes, snapshot_id}
     """
@@ -199,7 +203,7 @@ def import_stock(stock_rows: list, catalog: dict, filename: str = "") -> dict:
         cat_info = catalog.get(article, {})
         name = cat_info.get("name", row.get("name", ""))
         brand = cat_info.get("brand", "")
-        group = cat_info.get("group", "")
+        group = cat_info.get("group", "") or row.get("group", "")
         no_expiry = is_no_expiry_product(name, group)
 
         key = (store, article)
@@ -260,17 +264,19 @@ def import_stock(stock_rows: list, catalog: dict, filename: str = "") -> dict:
             added += 1
 
     # 5. Товары не в файле → available = 0 (распродано)
-    for (store, article), ex in existing.items():
-        if ex.get("_done"):
-            continue
-        if ex["available"] > 0:
-            db.execute(
-                "UPDATE store_products SET available = 0 WHERE id = ?",
-                (ex["id"],),
-            )
-            changes.append((snapshot_id, store, article, ex["name"],
-                           ex["available"], 0, -ex["available"]))
-            zeroed += 1
+    #    Пропускается при additive=True (дополнительный импорт)
+    if not additive:
+        for (store, article), ex in existing.items():
+            if ex.get("_done"):
+                continue
+            if ex["available"] > 0:
+                db.execute(
+                    "UPDATE store_products SET available = 0 WHERE id = ?",
+                    (ex["id"],),
+                )
+                changes.append((snapshot_id, store, article, ex["name"],
+                               ex["available"], 0, -ex["available"]))
+                zeroed += 1
 
     # 6. Сохраняем изменения
     if changes:
@@ -296,6 +302,71 @@ def import_stock(stock_rows: list, catalog: dict, filename: str = "") -> dict:
         "updated": updated, "added": added, "zeroed": zeroed,
         "total_changes": len(changes), "snapshot_id": snapshot_id,
     }
+
+
+def undo_import(snapshot_id: int) -> dict:
+    """
+    Отменяет импорт: восстанавливает предыдущие количества товаров.
+    Возвращает dict: {restored, deleted, snapshot_id}
+    """
+    db = get_db()
+
+    # Получаем все изменения для этого снимка
+    changes = db.execute(
+        """SELECT store_number, article, previous_qty, new_qty
+           FROM stock_changes WHERE snapshot_id = ?""",
+        (snapshot_id,),
+    ).fetchall()
+
+    restored = 0
+    deleted = 0
+
+    for ch in changes:
+        store = ch["store_number"]
+        article = ch["article"]
+        prev = ch["previous_qty"]
+        new = ch["new_qty"]
+
+        if prev == 0 and new > 0:
+            # Товар был добавлен — удаляем его (или обнуляем)
+            db.execute(
+                """UPDATE store_products SET available = 0
+                   WHERE store_number = ? AND article = ?""",
+                (store, article),
+            )
+            deleted += 1
+        elif prev > 0 and new == 0:
+            # Товар был обнулён — восстанавливаем
+            db.execute(
+                """UPDATE store_products SET available = ?
+                   WHERE store_number = ? AND article = ?""",
+                (prev, store, article),
+            )
+            restored += 1
+        elif prev != new:
+            # Количество изменилось — откатываем
+            db.execute(
+                """UPDATE store_products SET available = ?
+                   WHERE store_number = ? AND article = ?""",
+                (prev, store, article),
+            )
+            restored += 1
+
+    # Удаляем записи изменений и снимок
+    db.execute("DELETE FROM stock_changes WHERE snapshot_id = ?", (snapshot_id,))
+    db.execute("DELETE FROM stock_snapshots WHERE id = ?", (snapshot_id,))
+    db.commit()
+
+    return {"restored": restored, "deleted": deleted, "snapshot_id": snapshot_id}
+
+
+def get_last_snapshot() -> dict:
+    """Возвращает последний снимок импорта."""
+    db = get_db()
+    row = db.execute(
+        "SELECT * FROM stock_snapshots ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    return dict(row) if row else None
 
 
 def is_no_expiry_product(name: str, group: str) -> bool:
@@ -683,6 +754,22 @@ def get_activity_summary() -> list[dict]:
         ORDER BY last_activity DESC
     """).fetchall()
     return [dict(r) for r in rows]
+
+
+def get_today_active_stores(tz_offset_hours: int = 3) -> set:
+    """
+    Возвращает set номеров магазинов, которые имели активность сегодня.
+    tz_offset_hours: смещение от UTC (3 для Москвы).
+    """
+    db = get_db()
+    # SQLite хранит created_at в UTC, сдвигаем на часовой пояс
+    rows = db.execute("""
+        SELECT DISTINCT store_number
+        FROM activity_log
+        WHERE store_number != 'admin'
+          AND datetime(created_at, '+' || ? || ' hours') >= date('now', '+' || ? || ' hours')
+    """, (tz_offset_hours, tz_offset_hours)).fetchall()
+    return {r["store_number"] for r in rows}
 
 
 # ── Центры ────────────────────────────────────────────────────────────────

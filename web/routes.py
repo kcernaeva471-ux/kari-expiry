@@ -471,9 +471,15 @@ def create_app() -> Flask:
                     flash("Нет данных для импорта", "danger")
                     return redirect(url_for("upload"))
 
-                result = database.import_stock(stock_rows, catalog, filename=stock_file.filename)
+                additive = request.form.get("additive") == "on"
+                result = database.import_stock(
+                    stock_rows, catalog,
+                    filename=stock_file.filename,
+                    additive=additive,
+                )
+                mode = "Доп. импорт" if additive else "Импорт"
                 flash(
-                    f"Импорт: обновлено {result['updated']}, "
+                    f"{mode}: обновлено {result['updated']}, "
                     f"добавлено {result['added']}, "
                     f"обнулено {result['zeroed']}, "
                     f"изменений {result['total_changes']}",
@@ -481,7 +487,7 @@ def create_app() -> Flask:
                 )
                 database.log_activity(
                     "admin", "import_stock",
-                    f"Файл: {stock_file.filename}. "
+                    f"{'[ДОП] ' if additive else ''}Файл: {stock_file.filename}. "
                     f"Обновлено: {result['updated']}, добавлено: {result['added']}, "
                     f"обнулено: {result['zeroed']}")
                 return redirect(url_for("dashboard"))
@@ -495,7 +501,26 @@ def create_app() -> Flask:
                 if catalog_path and os.path.exists(catalog_path):
                     os.unlink(catalog_path)
 
-        return render_template("upload.html")
+        last_snapshot = database.get_last_snapshot()
+        return render_template("upload.html", last_snapshot=last_snapshot)
+
+    @app.route("/api/undo-import", methods=["POST"])
+    @login_required
+    @admin_required
+    def undo_import():
+        data = request.get_json() or {}
+        snapshot_id = data.get("snapshot_id")
+        if not snapshot_id:
+            return jsonify({"error": "Не указан snapshot_id"}), 400
+        try:
+            result = database.undo_import(int(snapshot_id))
+            database.log_activity(
+                "admin", "undo_import",
+                f"Отмена импорта #{snapshot_id}: "
+                f"восстановлено {result['restored']}, удалено {result['deleted']}")
+            return jsonify({"ok": True, **result})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
     # ── Центры (админ) ──────────────────────────────────────────────────
 

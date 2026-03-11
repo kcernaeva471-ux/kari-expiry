@@ -204,9 +204,13 @@ async def trigger_morning_report(context: ContextTypes.DEFAULT_TYPE):
             lines.append(f"  {s['store_number']}  {bar} {pct}%  ({s['not_filled']} тов.)")
 
     # Кто не заходил вообще
-    never_logged = [st for st in config.VALID_STORES if st not in active_stores]
+    try:
+        all_valid = database.get_valid_stores()
+    except Exception:
+        all_valid = config.VALID_STORES
+    never_logged = [st for st in all_valid if st not in active_stores]
     if never_logged:
-        lines.append(f"\n🚫 Не заходили: {', '.join(never_logged)}")
+        lines.append(f"\n🚫 Не заходили: {', '.join(sorted(never_logged))}")
 
     lines.append(f"\n🔗 {DASHBOARD_URL}")
 
@@ -224,12 +228,8 @@ async def trigger_evening_nudge(context: ContextTypes.DEFAULT_TYPE):
     stores = database.get_all_stores_summary()
     activity = database.get_activity_summary()
 
-    # Считаем кто сегодня работал
-    today = datetime.now().strftime("%Y-%m-%d")
-    active_today = set()
-    for s in activity:
-        if s.get("last_activity") and s["last_activity"].startswith(today):
-            active_today.add(s["store_number"])
+    # Считаем кто сегодня работал (по московскому времени)
+    active_today = database.get_today_active_stores(tz_offset_hours=3)
 
     # Магазины с незаполненными товарами
     lagging = [s for s in stores if s["total"] > 0 and s["not_filled"] > 0]

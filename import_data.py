@@ -65,7 +65,7 @@ def read_catalog(file_path: str) -> dict:
             col_map["name"] = i
         elif "торговая марка" in text or "марка" in text:
             col_map["brand"] = i
-        elif "группа" in text and "group" not in col_map:
+        elif text == "группа" or (text.startswith("группа") and "бизнес" not in text):
             col_map["group"] = i
 
     logger.info(f"Колонки каталога: {col_map}")
@@ -131,7 +131,7 @@ def read_stock(file_path: str) -> list:
             col_map["available"] = i
         elif "физические запасы" in text:
             col_map.setdefault("available", i)
-        elif "розничная группа" in text or ("группа" in text and "group" not in col_map):
+        elif "розничная группа" in text or (text == "группа") or (text.startswith("группа") and "бизнес" not in text):
             col_map["group"] = i
 
     logger.info(f"Колонки остатков: {col_map}")
@@ -182,11 +182,18 @@ def read_stock(file_path: str) -> list:
         if name_idx is not None and name_idx < len(row) and row[name_idx]:
             name = str(row[name_idx]).strip()
 
+        # Группа из остатков (если есть)
+        group = ""
+        group_idx = col_map.get("group")
+        if group_idx is not None and group_idx < len(row) and row[group_idx]:
+            group = str(row[group_idx]).strip()
+
         stock_rows.append({
             "article": article,
             "name": name,
             "store": store_digits,
             "available": available,
+            "group": group,
         })
 
     logger.info(f"Остатки: {len(stock_rows)} строк")
