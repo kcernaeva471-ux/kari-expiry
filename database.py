@@ -93,6 +93,35 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_activity_store ON activity_log(store_number);
         CREATE INDEX IF NOT EXISTS idx_activity_time ON activity_log(created_at);
         CREATE INDEX IF NOT EXISTS idx_prices_article ON product_prices(article);
+
+        -- Снимки импортов (история загрузок)
+        CREATE TABLE IF NOT EXISTS stock_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            imported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            filename TEXT DEFAULT '',
+            total_rows INTEGER DEFAULT 0,
+            products_updated INTEGER DEFAULT 0,
+            products_added INTEGER DEFAULT 0,
+            products_zeroed INTEGER DEFAULT 0
+        );
+
+        -- Изменения количеств при импорте
+        CREATE TABLE IF NOT EXISTS stock_changes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            snapshot_id INTEGER NOT NULL REFERENCES stock_snapshots(id),
+            store_number TEXT NOT NULL,
+            article TEXT NOT NULL,
+            product_name TEXT DEFAULT '',
+            previous_qty INTEGER DEFAULT 0,
+            new_qty INTEGER DEFAULT 0,
+            delta INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_sc_snapshot ON stock_changes(snapshot_id);
+        CREATE INDEX IF NOT EXISTS idx_sc_store ON stock_changes(store_number);
+        CREATE INDEX IF NOT EXISTS idx_sc_created ON stock_changes(created_at);
+        CREATE INDEX IF NOT EXISTS idx_snapshots_time ON stock_snapshots(imported_at);
     """)
 
     # Миграции для существующих БД
@@ -133,46 +162,130 @@ def setup_store_access():
 
 # ── Импорт данных ─────────────────────────────────────────────────────────
 
-def import_stock(stock_rows: list, catalog: dict):
+def import_stock(stock_rows: list, catalog: dict, filename: str = "") -> dict:
     """
-    Импорт остатков + каталог.
-    stock_rows: [{"article", "name", "store", "available"}, ...]
-    catalog: {article: {"name", "brand", "group"}, ...}
+    Безопасный импорт остатков — обновляет количества, не удаляет партии.
+    Отслеживает изменения для расчёта продаж.
+
+    Возвращает dict: {updated, added, zeroed, total_changes, snapshot_id}
     """
     db = get_db()
 
-    # Очищаем старые данные
-    db.execute("DELETE FROM batches")
-    db.execute("DELETE FROM store_products")
+    # 1. Создаём запись импорта
+    cursor = db.execute(
+        "INSERT INTO stock_snapshots (filename) VALUES (?)", (filename,)
+    )
+    snapshot_id = cursor.lastrowid
 
-    count = 0
+    # 2. Агрегируем новые данные по (магазин, артикул)
+    new_data = {}
     for row in stock_rows:
         article = row["article"]
         store = row["store"]
         available = row["available"]
-
         if not available or available <= 0:
             continue
 
-        # Берём инфо из каталога (если есть)
         cat_info = catalog.get(article, {})
         name = cat_info.get("name", row.get("name", ""))
         brand = cat_info.get("brand", "")
         group = cat_info.get("group", "")
-
-        # Определяем, есть ли срок годности
         no_expiry = is_no_expiry_product(name, group)
 
-        db.execute(
-            """INSERT OR REPLACE INTO store_products
-               (store_number, article, name, brand, product_group, available, no_expiry)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (store, article, name, brand, group, available, 1 if no_expiry else 0),
-        )
-        count += 1
+        key = (store, article)
+        if key in new_data:
+            new_data[key]["available"] += available
+        else:
+            new_data[key] = {
+                "available": available, "name": name,
+                "brand": brand, "group": group, "no_expiry": no_expiry,
+            }
 
+    # 3. Загружаем текущие товары для сравнения
+    existing = {}
+    for row in db.execute(
+        "SELECT id, store_number, article, available, name FROM store_products"
+    ).fetchall():
+        existing[(row["store_number"], row["article"])] = {
+            "id": row["id"], "available": row["available"], "name": row["name"],
+        }
+
+    updated = 0
+    added = 0
+    zeroed = 0
+    changes = []
+
+    # 4. Обновляем существующие / добавляем новые
+    for (store, article), info in new_data.items():
+        key = (store, article)
+        if key in existing:
+            old_qty = existing[key]["available"]
+            new_qty = info["available"]
+            db.execute(
+                """UPDATE store_products
+                   SET available = ?,
+                       name = COALESCE(NULLIF(?, ''), name),
+                       brand = COALESCE(NULLIF(?, ''), brand),
+                       product_group = COALESCE(NULLIF(?, ''), product_group)
+                   WHERE id = ?""",
+                (new_qty, info["name"], info["brand"], info["group"],
+                 existing[key]["id"]),
+            )
+            if old_qty != new_qty:
+                changes.append((snapshot_id, store, article,
+                               existing[key]["name"] or info["name"],
+                               old_qty, new_qty, new_qty - old_qty))
+            updated += 1
+            existing[key]["_done"] = True
+        else:
+            db.execute(
+                """INSERT INTO store_products
+                   (store_number, article, name, brand, product_group, available, no_expiry)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (store, article, info["name"], info["brand"], info["group"],
+                 info["available"], 1 if info["no_expiry"] else 0),
+            )
+            changes.append((snapshot_id, store, article, info["name"],
+                           0, info["available"], info["available"]))
+            added += 1
+
+    # 5. Товары не в файле → available = 0 (распродано)
+    for (store, article), ex in existing.items():
+        if ex.get("_done"):
+            continue
+        if ex["available"] > 0:
+            db.execute(
+                "UPDATE store_products SET available = 0 WHERE id = ?",
+                (ex["id"],),
+            )
+            changes.append((snapshot_id, store, article, ex["name"],
+                           ex["available"], 0, -ex["available"]))
+            zeroed += 1
+
+    # 6. Сохраняем изменения
+    if changes:
+        db.executemany(
+            """INSERT INTO stock_changes
+               (snapshot_id, store_number, article, product_name,
+                previous_qty, new_qty, delta)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            changes,
+        )
+
+    # 7. Обновляем статистику снимка
+    db.execute(
+        """UPDATE stock_snapshots
+           SET total_rows = ?, products_updated = ?,
+               products_added = ?, products_zeroed = ?
+           WHERE id = ?""",
+        (len(stock_rows), updated, added, zeroed, snapshot_id),
+    )
     db.commit()
-    return count
+
+    return {
+        "updated": updated, "added": added, "zeroed": zeroed,
+        "total_changes": len(changes), "snapshot_id": snapshot_id,
+    }
 
 
 def is_no_expiry_product(name: str, group: str) -> bool:
@@ -712,6 +825,65 @@ def update_store_role(store_number: str, role: str):
         (role, store_number),
     )
     db.commit()
+
+
+# ── Продажи (по данным импортов) ──────────────────────────────────────────
+
+def get_sales_with_expiry_status(days: int = 7) -> list[dict]:
+    """Продажи по магазинам с разбивкой по статусу срока годности."""
+    db = get_db()
+    today = date.today()
+
+    rows = db.execute("""
+        SELECT sc.store_number, sc.article, ABS(sc.delta) as qty_sold,
+               MIN(b.expiry_date) as worst_expiry
+        FROM stock_changes sc
+        JOIN stock_snapshots ss ON ss.id = sc.snapshot_id
+        LEFT JOIN store_products sp
+            ON sp.store_number = sc.store_number AND sp.article = sc.article
+        LEFT JOIN batches b ON b.product_id = sp.id
+        WHERE sc.delta < 0
+          AND ss.imported_at >= datetime('now', ?)
+        GROUP BY sc.id
+    """, (f'-{days} days',)).fetchall()
+
+    stores = {}
+    for r in rows:
+        store = r["store_number"]
+        if store not in stores:
+            stores[store] = {
+                "store_number": store,
+                "sold_normal": 0, "sold_d50": 0,
+                "sold_d70": 0, "sold_expired": 0,
+                "total_sold": 0,
+            }
+        qty = r["qty_sold"]
+        stores[store]["total_sold"] += qty
+
+        if r["worst_expiry"]:
+            days_left = (date.fromisoformat(r["worst_expiry"]) - today).days
+            if days_left <= 0:
+                stores[store]["sold_expired"] += qty
+            elif days_left <= config.DISCOUNT_THRESHOLDS["discount_70"]:
+                stores[store]["sold_d70"] += qty
+            elif days_left <= config.DISCOUNT_THRESHOLDS["discount_50"]:
+                stores[store]["sold_d50"] += qty
+            else:
+                stores[store]["sold_normal"] += qty
+        else:
+            stores[store]["sold_normal"] += qty
+
+    return sorted(stores.values(), key=lambda x: x["total_sold"], reverse=True)
+
+
+def get_import_history(limit: int = 10) -> list[dict]:
+    """История последних импортов."""
+    db = get_db()
+    rows = db.execute(
+        "SELECT * FROM stock_snapshots ORDER BY imported_at DESC LIMIT ?",
+        (limit,),
+    ).fetchall()
+    return [dict(r) for r in rows]
 
 
 # ── Цены и потери ─────────────────────────────────────────────────────────

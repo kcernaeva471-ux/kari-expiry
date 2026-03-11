@@ -50,24 +50,6 @@ def create_app() -> Flask:
     app.secret_key = config.FLASK_SECRET_KEY
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB
 
-    # ── Временный endpoint для загрузки БД (удалить после миграции) ──
-    @app.route("/admin/upload-db", methods=["POST"])
-    def upload_db():
-        secret = request.args.get("key", "")
-        if secret != "migrate2026":
-            return "Forbidden", 403
-        f = request.files.get("db")
-        if not f:
-            return "No file", 400
-        db_path = config.DATABASE_PATH
-        # Закрываем старое соединение
-        if hasattr(database._local, "db") and database._local.db:
-            database._local.db.close()
-            database._local.db = None
-        f.save(db_path)
-        database.init_db()
-        database.setup_store_access()
-        return f"OK, saved to {db_path}", 200
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
@@ -342,13 +324,21 @@ def create_app() -> Flask:
             losses = {"stores": [], "totals": {"expired": 0, "d70": 0, "d50": 0, "total": 0}}
             prices_count = {"total": 0, "fetched": 0}
         fetch_status = price_fetcher.get_status() if price_fetcher else {"running": False, "done": 0, "total": 0, "errors": 0}
+        try:
+            sales_summary = database.get_sales_with_expiry_status(days=7)
+            import_history = database.get_import_history(5)
+        except Exception:
+            sales_summary = []
+            import_history = []
         return render_template("activity.html",
                                summary=summary, log=log,
                                store_filter=store_filter,
                                stores_completion=stores_completion,
                                losses=losses,
                                prices_count=prices_count,
-                               fetch_status=fetch_status)
+                               fetch_status=fetch_status,
+                               sales_summary=sales_summary,
+                               import_history=import_history)
 
     @app.route("/api/fetch-prices", methods=["POST"])
     @login_required
@@ -405,8 +395,19 @@ def create_app() -> Flask:
                     flash("Нет данных для импорта", "danger")
                     return redirect(url_for("upload"))
 
-                count = database.import_stock(stock_rows, catalog)
-                flash(f"Импортировано {count} товаров", "success")
+                result = database.import_stock(stock_rows, catalog, filename=stock_file.filename)
+                flash(
+                    f"Импорт: обновлено {result['updated']}, "
+                    f"добавлено {result['added']}, "
+                    f"обнулено {result['zeroed']}, "
+                    f"изменений {result['total_changes']}",
+                    "success",
+                )
+                database.log_activity(
+                    "admin", "import_stock",
+                    f"Файл: {stock_file.filename}. "
+                    f"Обновлено: {result['updated']}, добавлено: {result['added']}, "
+                    f"обнулено: {result['zeroed']}")
                 return redirect(url_for("dashboard"))
 
             except Exception as e:

@@ -193,6 +193,95 @@
 </div>
 {% endif %}
 
+<!-- Реализация (продажи) -->
+<h6 class="mb-2 fw-bold">Реализация за неделю</h6>
+
+{% if import_history %}
+<div class="small text-muted mb-2">
+    Последний импорт: {{ import_history[0].imported_at[:16] | replace('T', ' ') }}
+    (обновлено: {{ import_history[0].products_updated }},
+     добавлено: {{ import_history[0].products_added }},
+     обнулено: {{ import_history[0].products_zeroed }})
+</div>
+{% endif %}
+
+{% if sales_summary %}
+{% set sns = namespace(total_sold=0, sold_expired=0, sold_d70=0, sold_d50=0, sold_normal=0) %}
+{% for s in sales_summary %}
+    {% set sns.total_sold = sns.total_sold + s.total_sold %}
+    {% set sns.sold_expired = sns.sold_expired + s.sold_expired %}
+    {% set sns.sold_d70 = sns.sold_d70 + s.sold_d70 %}
+    {% set sns.sold_d50 = sns.sold_d50 + s.sold_d50 %}
+    {% set sns.sold_normal = sns.sold_normal + s.sold_normal %}
+{% endfor %}
+
+<div class="row g-2 mb-3">
+    <div class="col-6 col-sm">
+        <div class="summary-card" style="background: #c8e6c9;">
+            <div class="count text-success" style="font-size: 1.2rem;">{{ sns.total_sold }} шт</div>
+            <small>Всего продано</small>
+        </div>
+    </div>
+    <div class="col-6 col-sm">
+        <div class="summary-card" style="background: #e8f5e9;">
+            <div class="count" style="font-size: 1.2rem; color: #2e7d32;">{{ sns.sold_normal }}</div>
+            <small>Обычные</small>
+        </div>
+    </div>
+    <div class="col-6 col-sm">
+        <div class="summary-card" style="background: #fff9c4;">
+            <div class="count" style="font-size: 1.2rem; color: #f57f17;">{{ sns.sold_d50 }}</div>
+            <small>Скидка 50%</small>
+        </div>
+    </div>
+    <div class="col-6 col-sm">
+        <div class="summary-card" style="background: #fbe9d7;">
+            <div class="count" style="font-size: 1.2rem; color: #6D4C30;">{{ sns.sold_d70 }}</div>
+            <small>Скидка 70%</small>
+        </div>
+    </div>
+    <div class="col-6 col-sm">
+        <div class="summary-card" style="background: #f8d7da;">
+            <div class="count text-danger" style="font-size: 1.2rem;">{{ sns.sold_expired }}</div>
+            <small>Просрочено</small>
+        </div>
+    </div>
+</div>
+
+<div class="table-modern mb-4">
+<div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+        <thead>
+            <tr>
+                <th>Магазин</th>
+                <th class="text-end">Продано</th>
+                <th class="text-end">Обычные</th>
+                <th class="text-end">50%</th>
+                <th class="text-end">70%</th>
+                <th class="text-end">Просроч.</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in sales_summary %}
+            <tr>
+                <td><a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a></td>
+                <td class="text-end fw-bold">{{ s.total_sold }}</td>
+                <td class="text-end text-success">{{ s.sold_normal }}</td>
+                <td class="text-end" style="color: #f57f17;">{{ s.sold_d50 }}</td>
+                <td class="text-end" style="color: #6D4C30;">{{ s.sold_d70 }}</td>
+                <td class="text-end text-danger">{{ s.sold_expired }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+</div>
+{% else %}
+<div class="alert alert-secondary py-2 small mb-4">
+    Нет данных о продажах. Загрузите остатки повторно для отслеживания изменений.
+</div>
+{% endif %}
+
 <!-- Сводка активности -->
 <h6 class="mb-2 fw-bold">Активность по магазинам</h6>
 <div class="table-modern mb-4">

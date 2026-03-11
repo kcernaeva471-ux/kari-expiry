@@ -217,8 +217,11 @@ def run_import(catalog_path: str, stock_path: str):
         return
 
     # Импортируем в БД
-    count = database.import_stock(stock_rows, catalog)
-    logger.info(f"✅ Импортировано {count} товаров в БД")
+    result = database.import_stock(stock_rows, catalog)
+    logger.info(
+        f"Импорт: обновлено={result['updated']}, "
+        f"добавлено={result['added']}, обнулено={result['zeroed']}"
+    )
 
     # Статистика
     stats_by_store = {}
