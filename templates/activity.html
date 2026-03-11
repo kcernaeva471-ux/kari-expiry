@@ -22,8 +22,12 @@
             </tr>
         </thead>
         <tbody>
-            {# --- Предрасчёт итогов по центрам --- #}
+            {# --- Предрасчёт: итоги по центрам + set активных магазинов --- #}
             {% set center_totals = {} %}
+            {% set active_set = {} %}
+            {% for s in summary %}
+                {% if active_set.update({s.store_number: true}) %}{% endif %}
+            {% endfor %}
             {% for s in stores_completion %}
             {% if s.total > 0 %}
                 {% set cname = s.get('center_name', '') or 'Без центра' %}
@@ -36,7 +40,7 @@
             {% endif %}
             {% endfor %}
 
-            {# --- Отрисовка: заголовок центра + итоги (видны) → строки магазинов (скрыты) --- #}
+            {# --- Отрисовка: заголовок центра (видны) → строки магазинов (скрыты) --- #}
             {% set cns = namespace(current_center='') %}
             {% for s in stores_completion %}
             {% if s.total > 0 %}
@@ -62,9 +66,13 @@
             {% set filled = s.total - s.not_filled - s.no_expiry %}
             {% set done = filled + s.no_expiry %}
             {% set pct = ((done / s.total) * 100) | int if s.total > 0 else 0 %}
+            {% set is_active = s.store_number in active_set %}
             <tr class="center-row" data-cid="{{ s.center_id or 0 }}" style="display:none;">
                 <td>
                     <a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a>
+                    {% if not is_active %}
+                        <span class="text-muted" style="font-size:0.65rem; font-weight:400;"> нет активности</span>
+                    {% endif %}
                 </td>
                 <td class="text-end">{{ s.total }}</td>
                 <td class="text-end d-none d-sm-table-cell">{{ filled }}</td>
@@ -99,20 +107,6 @@
 </div>
 </div>
 
-{% set not_filled_stores = [] %}
-{% for s in stores_completion %}
-    {% if s.total > 0 and s.not_filled > 0 %}
-        {% if not_filled_stores.append(s) %}{% endif %}
-    {% endif %}
-{% endfor %}
-{% if not_filled_stores %}
-<div class="alert alert-danger py-2 small mb-4">
-    <b>Не внесли все данные:</b>
-    {% for s in not_filled_stores %}
-        <span class="badge bg-danger">{{ s.store_number }} ({{ s.not_filled }} тов.)</span>
-    {% endfor %}
-</div>
-{% endif %}
 
 <!-- Потери в деньгах -->
 <div class="d-flex justify-content-between align-items-center mb-2">
