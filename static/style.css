@@ -99,21 +99,21 @@ body {
 /* Desktop nav links — скрыты на мобиле */
 .desktop-nav { display: none; }
 
-/* ── Нижняя навигация (mobile, KariGO style) ────────────────────── */
+/* ── Нижняя навигация (KariGO style) ─────────────────────────────── */
 
 .bottom-nav {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 64px;
+    height: 72px;
     background: #fff;
-    border-top: 1px solid #eee;
+    border-top: 1px solid rgba(0,0,0,0.06);
     display: flex;
-    align-items: stretch;
+    align-items: center;
     justify-content: space-around;
     z-index: 1040;
-    box-shadow: 0 -4px 16px rgba(0,0,0,0.06);
+    box-shadow: 0 -2px 20px rgba(0,0,0,0.08);
     padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
@@ -123,44 +123,28 @@ body {
     align-items: center;
     justify-content: center;
     text-decoration: none;
-    color: #bbb;
-    font-size: 0.68rem;
+    color: #c0c0c0;
+    font-size: 0.7rem;
     font-weight: 500;
     flex: 1;
-    padding: 8px 0 6px;
+    padding: 10px 0 8px;
     transition: color 0.2s;
     -webkit-tap-highlight-color: transparent;
     position: relative;
+    gap: 4px;
+    letter-spacing: 0.02em;
 }
 
 .bottom-nav-item svg {
-    width: 26px;
-    height: 26px;
-    margin-bottom: 3px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.8;
+    width: 28px;
+    height: 28px;
+    fill: currentColor;
+    stroke: none;
 }
 
 .bottom-nav-item.active {
     color: var(--kari-purple);
     font-weight: 700;
-}
-
-.bottom-nav-item.active::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 32px;
-    height: 3px;
-    background: var(--kari-purple);
-    border-radius: 0 0 3px 3px;
-}
-
-.bottom-nav-item.active svg {
-    stroke-width: 2.2;
 }
 
 .bottom-nav-item:active {
