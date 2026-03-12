@@ -507,7 +507,7 @@ def create_app() -> Flask:
             summary = [s for s in summary if s.get("store_number") in center_stores]
             log = [l for l in log if l.get("store_number") in center_stores]
             if isinstance(losses, dict) and "stores" in losses:
-                losses["stores"] = [s for s in losses["stores"] if s.get("store") in center_stores]
+                losses["stores"] = [s for s in losses["stores"] if s.get("store_number") in center_stores]
                 # Пересчитаем итоги
                 totals = {"expired": 0, "d70": 0, "d50": 0, "total": 0}
                 for s in losses["stores"]:
