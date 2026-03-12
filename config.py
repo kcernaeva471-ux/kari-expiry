@@ -64,8 +64,8 @@ MAX_PHOTO_SIZE_MB = 10
 
 # ── Цвета категорий (для веба) ────────────────────────────────────────────
 CATEGORY_STYLES = {
-    "ПРОСРОЧЕН": {"bg": "#f8d7da", "text": "#721c24", "badge": "danger"},
-    "Скидка 70%": {"bg": "#ffe0b2", "text": "#e65100", "badge": "brown"},
-    "Скидка 50%": {"bg": "#fff9c4", "text": "#f57f17", "badge": "warning"},
-    "В норме": {"bg": "#c8e6c9", "text": "#1b5e20", "badge": "success"},
+    "ПРОСРОЧЕН": {"bg": "#f5d5e5", "text": "#991E66", "badge": "danger"},
+    "Скидка 70%": {"bg": "#f0dde8", "text": "#8b3a6a", "badge": "brown"},
+    "Скидка 50%": {"bg": "#ebe0f0", "text": "#6b457a", "badge": "warning"},
+    "В норме": {"bg": "#e0ece4", "text": "#3d6b50", "badge": "success"},
 }

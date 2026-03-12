@@ -6,6 +6,23 @@
     --kari-light: #f9f0f5;
     --kari-pink: #e8a0c8;
     --kari-gradient: linear-gradient(135deg, #991E66 0%, #c2185b 50%, #e91e63 100%);
+    /* Гармоничные полутона для статусов (на базе kari-purple) */
+    --status-critical-bg: #f5d5e5;
+    --status-critical-text: #991E66;
+    --status-warning-bg: #f0dde8;
+    --status-warning-text: #8b3a6a;
+    --status-caution-bg: #ebe0f0;
+    --status-caution-text: #6b457a;
+    --status-ok-bg: #e0ece4;
+    --status-ok-text: #3d6b50;
+    --status-info-bg: #ede0f0;
+    --status-info-text: #7b3a9a;
+    --status-neutral-bg: #f0edf2;
+    --status-neutral-text: #555;
+    /* Прогресс-бары гармоничные */
+    --bar-good: #6a9e7e;
+    --bar-mid: #c09060;
+    --bar-bad: #c2456a;
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
     --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
     --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
@@ -555,9 +572,15 @@ body {
     font-size: 0.75rem;
 }
 
-/* Оранжевый (70%) и жёлтый (50%) */
-.bg-brown { background-color: #e65100 !important; color: #fff; }
-.bg-yellow { background-color: #fdd835 !important; color: #333; }
+/* Оранжевый (70%) и жёлтый (50%) — гармоничные */
+.bg-brown { background-color: #a84868 !important; color: #fff; }
+.bg-yellow { background-color: #c09060 !important; color: #fff; }
+
+/* Гармоничные бейджи вместо Bootstrap */
+.badge.bg-success { background: var(--bar-good) !important; }
+.badge.bg-danger { background: var(--bar-bad) !important; }
+.badge.bg-primary { background: var(--kari-purple) !important; }
+.badge.bg-info { background: var(--status-info-bg) !important; color: var(--status-info-text) !important; }
 
 /* ── Инструкция ───────────────────────────────────────────────────── */
 
@@ -592,7 +615,7 @@ body {
 
 .progress {
     border-radius: 10px;
-    background: #e0e0e0;
+    background: #ece4e8;
     overflow: visible;
     position: relative;
 }
@@ -605,6 +628,17 @@ body {
     min-width: 28px;
     text-shadow: 0 1px 1px rgba(0,0,0,0.2);
 }
+/* Гармоничные цвета прогресс-баров вместо Bootstrap */
+.progress-bar.bg-success { background: var(--bar-good) !important; }
+.progress-bar.bg-warning { background: var(--bar-mid) !important; color: #fff !important; }
+.progress-bar.bg-danger { background: var(--bar-bad) !important; }
+
+/* Гармоничные текстовые цвета */
+.table-modern .text-success,
+.summary-card .text-success { color: var(--status-ok-text) !important; }
+.table-modern .text-danger,
+.summary-card .text-danger { color: var(--status-critical-text) !important; }
+.store-stats .text-danger { color: var(--bar-bad) !important; }
 
 /* ── Алерты ────────────────────────────────────────────────────────── */
 
@@ -678,12 +712,13 @@ body {
 .log-entry {
     padding: 10px 14px;
     font-size: 0.82rem;
-    border-left: 3px solid #e0e0e0;
+    border-left: 3px solid #e0d5e0;
 }
-.log-entry[data-action="login"] { border-left-color: #2196f3; }
-.log-entry[data-action="add_batch"] { border-left-color: #4caf50; }
-.log-entry[data-action="delete_batch"] { border-left-color: #f44336; }
-.log-entry[data-action="no_expiry"] { border-left-color: #00bcd4; }
+.log-entry[data-action="login"] { border-left-color: var(--kari-pink); }
+.log-entry[data-action="add_batch"] { border-left-color: var(--bar-good); }
+.log-entry[data-action="delete_batch"] { border-left-color: var(--bar-bad); }
+.log-entry[data-action="no_expiry"] { border-left-color: #9a8aaa; }
+.log-entry[data-action="promo_photo"] { border-left-color: var(--kari-purple); }
 
 /* ── Мобильная оптимизация ─────────────────────────────────────────── */
 

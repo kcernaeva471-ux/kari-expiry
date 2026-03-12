@@ -11,32 +11,32 @@
 <div class="row g-2 mb-3">
     <div class="col-6 col-sm-3">
         <a href="/store/{{ store_number }}?filter=ПРОСРОЧЕН" class="text-decoration-none">
-            <div class="summary-card" style="background: #f8d7da;">
-                <div class="count text-danger">{{ stats.get('ПРОСРОЧЕН', 0) }}</div>
+            <div class="summary-card" style="background: var(--status-critical-bg);">
+                <div class="count" style="color: var(--status-critical-text);">{{ stats.get('ПРОСРОЧЕН', 0) }}</div>
                 <small>Просрочено</small>
             </div>
         </a>
     </div>
     <div class="col-6 col-sm-3">
         <a href="/store/{{ store_number }}?filter=Скидка 70%25" class="text-decoration-none">
-            <div class="summary-card" style="background: #ffe0b2;">
-                <div class="count" style="color: #e65100;">{{ stats.get('Скидка 70%', 0) }}</div>
+            <div class="summary-card" style="background: var(--status-warning-bg);">
+                <div class="count" style="color: var(--status-warning-text);">{{ stats.get('Скидка 70%', 0) }}</div>
                 <small>Скидка 70%</small>
             </div>
         </a>
     </div>
     <div class="col-6 col-sm-3">
         <a href="/store/{{ store_number }}?filter=Скидка 50%25" class="text-decoration-none">
-            <div class="summary-card" style="background: #fff9c4;">
-                <div class="count" style="color: #f57f17;">{{ stats.get('Скидка 50%', 0) }}</div>
+            <div class="summary-card" style="background: var(--status-caution-bg);">
+                <div class="count" style="color: var(--status-caution-text);">{{ stats.get('Скидка 50%', 0) }}</div>
                 <small>Скидка 50%</small>
             </div>
         </a>
     </div>
     <div class="col-6 col-sm-3">
         <a href="/store/{{ store_number }}?filter=В норме" class="text-decoration-none">
-            <div class="summary-card" style="background: #c8e6c9;">
-                <div class="count text-success">{{ stats.get('В норме', 0) }}</div>
+            <div class="summary-card" style="background: var(--status-ok-bg);">
+                <div class="count" style="color: var(--status-ok-text);">{{ stats.get('В норме', 0) }}</div>
                 <small>В норме</small>
             </div>
         </a>
@@ -69,7 +69,7 @@
 <!-- Фото акционной зоны -->
 {% set has_discounts = stats.get('ПРОСРОЧЕН', 0) > 0 or stats.get('Скидка 70%', 0) > 0 or stats.get('Скидка 50%', 0) > 0 %}
 {% if has_discounts %}
-<div class="card mb-3" style="border-left: 4px solid {% if today_photos %}#198754{% else %}#dc3545{% endif %}; border-radius: var(--radius);">
+<div class="card mb-3" style="border-left: 4px solid {% if today_photos %}var(--bar-good){% else %}var(--bar-bad){% endif %}; border-radius: var(--radius);">
     <div class="card-body py-2 px-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
             <div>
@@ -126,9 +126,9 @@
                 {% if not p.no_expiry and p.available > 0 %}
                 <div style="font-size: 0.7rem;">
                     {% if p.batch_total >= p.available %}
-                        <span class="text-success">внесено {{ p.batch_total }} из {{ p.available }}</span>
+                        <span style="color: var(--status-ok-text);">внесено {{ p.batch_total }} из {{ p.available }}</span>
                     {% elif p.batch_total > 0 %}
-                        <span style="color: #e65100;">внесено {{ p.batch_total }} из {{ p.available }}</span>
+                        <span style="color: var(--status-warning-text);">внесено {{ p.batch_total }} из {{ p.available }}</span>
                     {% else %}
                         <span class="text-muted">не внесено ({{ p.available }} шт.)</span>
                     {% endif %}
@@ -141,7 +141,7 @@
                 {% elif p.status == 'Скидка 70%' %}
                     <span class="badge bg-brown">70%</span>
                 {% elif p.status == 'Скидка 50%' %}
-                    <span class="badge" style="background: #fff176; color: #333;">50%</span>
+                    <span class="badge bg-yellow">50%</span>
                 {% elif p.status == 'В норме' %}
                     <span class="badge bg-success">OK</span>
                 {% elif p.status == 'Без срока' %}
@@ -150,7 +150,7 @@
                     <span class="badge bg-secondary">Пусто</span>
                 {% endif %}
                 {% if p.tester %}
-                    <span class="badge" style="background: #e91e90; color: #fff;">Тестер</span>
+                    <span class="badge" style="background: var(--kari-purple); color: #fff;">Тестер</span>
                 {% endif %}
                 {% if p.worst_days is not none and p.worst_days != None and p.worst_days < 99999 %}
                     <div style="font-size: 0.7rem; color: {{ styles.get(p.status, {}).get('text', '#666') }};">
@@ -172,7 +172,7 @@
                     <button class="btn btn-sm btn-outline-secondary ms-1"
                             onclick="setTester({{ p.id }}, false)">Убрать тестер</button>
                     {% else %}
-                    <button class="btn btn-sm ms-1" style="border-color: #e91e90; color: #e91e90;"
+                    <button class="btn btn-sm ms-1" style="border-color: var(--kari-purple); color: var(--kari-purple);"
                             onclick="setTester({{ p.id }}, true)">Выставить тестер</button>
                     {% endif %}
                 </div>
@@ -241,7 +241,7 @@
                             Убрать тестер
                         </button>
                         {% else %}
-                        <button class="btn btn-sm" style="border-color: #e91e90; color: #e91e90;"
+                        <button class="btn btn-sm" style="border-color: var(--kari-purple); color: var(--kari-purple);"
                                 onclick="setTester({{ p.id }}, true)">
                             Выставить тестер
                         </button>

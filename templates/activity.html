@@ -80,7 +80,7 @@
                 <td class="text-end d-none d-sm-table-cell">{{ s.no_expiry }}</td>
                 <td class="text-end d-none d-sm-table-cell">
                     {% if s.get('testers', 0) > 0 %}
-                        <span style="color: #e91e90;">{{ s.testers }}</span>
+                        <span style="color: var(--kari-purple);">{{ s.testers }}</span>
                     {% else %}
                         <span class="text-muted">—</span>
                     {% endif %}
@@ -103,7 +103,7 @@
                 <td class="text-center">
                     {% set ps = promo_status.get(s.store_number, {}) %}
                     {% if ps.get('uploaded_today') %}
-                        <span style="color: #2e7d32; font-size: 1.1rem; cursor: pointer;"
+                        <span style="color: var(--status-ok-text); font-size: 1.1rem; cursor: pointer;"
                               title="Фото загружено ({{ ps.photo_count }})"
                               onclick="showPhotos('{{ s.store_number }}')">✓ {{ ps.photo_count }}</span>
                     {% elif s.not_filled < s.total %}
@@ -156,32 +156,32 @@
 {% if losses.totals.total > 0 %}
 <div class="row g-2 mb-3">
     <div class="col-6 col-sm">
-        <div class="summary-card" style="background: #f8d7da;">
-            <div class="count text-danger" style="font-size: 1.2rem;">{{ '{:,.0f}'.format(losses.totals.expired).replace(',', ' ') }} ₽</div>
+        <div class="summary-card" style="background: var(--status-critical-bg);">
+            <div class="count" style="font-size: 1.2rem; color: var(--status-critical-text);">{{ '{:,.0f}'.format(losses.totals.expired).replace(',', ' ') }} ₽</div>
             <small>Просрочен</small>
         </div>
     </div>
     <div class="col-6 col-sm">
-        <div class="summary-card" style="background: #ffe0b2;">
-            <div class="count" style="font-size: 1.2rem; color: #e65100;">{{ '{:,.0f}'.format(losses.totals.d70).replace(',', ' ') }} ₽</div>
+        <div class="summary-card" style="background: var(--status-warning-bg);">
+            <div class="count" style="font-size: 1.2rem; color: var(--status-warning-text);">{{ '{:,.0f}'.format(losses.totals.d70).replace(',', ' ') }} ₽</div>
             <small>Скидка 70%</small>
         </div>
     </div>
     <div class="col-6 col-sm">
-        <div class="summary-card" style="background: #fff9c4;">
-            <div class="count" style="font-size: 1.2rem; color: #f57f17;">{{ '{:,.0f}'.format(losses.totals.d50).replace(',', ' ') }} ₽</div>
+        <div class="summary-card" style="background: var(--status-caution-bg);">
+            <div class="count" style="font-size: 1.2rem; color: var(--status-caution-text);">{{ '{:,.0f}'.format(losses.totals.d50).replace(',', ' ') }} ₽</div>
             <small>Скидка 50%</small>
         </div>
     </div>
     <div class="col-6 col-sm">
-        <div class="summary-card" style="background: #e8e8e8;">
-            <div class="count" style="font-size: 1.2rem; color: #333;">{{ '{:,.0f}'.format(losses.totals.total).replace(',', ' ') }} ₽</div>
+        <div class="summary-card" style="background: var(--status-neutral-bg);">
+            <div class="count" style="font-size: 1.2rem; color: var(--status-neutral-text);">{{ '{:,.0f}'.format(losses.totals.total).replace(',', ' ') }} ₽</div>
             <small>Итого стоимость</small>
         </div>
     </div>
     <div class="col-6 col-sm">
-        <div class="summary-card" style="background: {{ '#d4edda' if avg_pct >= 80 else ('#fff3cd' if avg_pct >= 50 else '#f8d7da') }};">
-            <div class="count" style="font-size: 1.2rem; color: {{ '#198754' if avg_pct >= 80 else ('#856404' if avg_pct >= 50 else '#dc3545') }};">{{ avg_pct }}%</div>
+        <div class="summary-card" style="background: {{ 'var(--status-ok-bg)' if avg_pct >= 80 else ('var(--status-caution-bg)' if avg_pct >= 50 else 'var(--status-critical-bg)') }};">
+            <div class="count" style="font-size: 1.2rem; color: {{ 'var(--status-ok-text)' if avg_pct >= 80 else ('var(--status-caution-text)' if avg_pct >= 50 else 'var(--status-critical-text)') }};">{{ avg_pct }}%</div>
             <small>Заполнено (сред.)</small>
         </div>
     </div>
@@ -236,9 +236,9 @@
             {% set spct = completion_map.get(s.store_number, 0) %}
             <tr class="loss-center-row" data-lcid="{{ lns.cid }}" style="display:none;">
                 <td><a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a></td>
-                <td class="text-end text-danger">{{ '{:,.0f}'.format(s.expired).replace(',', ' ') }}</td>
-                <td class="text-end d-none d-sm-table-cell" style="color: #e65100;">{{ '{:,.0f}'.format(s.d70).replace(',', ' ') }}</td>
-                <td class="text-end d-none d-sm-table-cell" style="color: #f57f17;">{{ '{:,.0f}'.format(s.d50).replace(',', ' ') }}</td>
+                <td class="text-end" style="color: var(--status-critical-text);">{{ '{:,.0f}'.format(s.expired).replace(',', ' ') }}</td>
+                <td class="text-end d-none d-sm-table-cell" style="color: var(--status-warning-text);">{{ '{:,.0f}'.format(s.d70).replace(',', ' ') }}</td>
+                <td class="text-end d-none d-sm-table-cell" style="color: var(--status-caution-text);">{{ '{:,.0f}'.format(s.d50).replace(',', ' ') }}</td>
                 <td class="text-end fw-bold">{{ '{:,.0f}'.format(s.total).replace(',', ' ') }} ₽</td>
                 <td>
                     <div class="progress" style="height: 18px;">
@@ -286,32 +286,32 @@
 
 <div class="row g-2 mb-3">
     <div class="col-6 col-sm">
-        <div class="summary-card" style="background: #c8e6c9;">
-            <div class="count text-success" style="font-size: 1.2rem;">{{ sns.total_sold }} шт</div>
+        <div class="summary-card" style="background: var(--status-ok-bg);">
+            <div class="count" style="font-size: 1.2rem; color: var(--status-ok-text);">{{ sns.total_sold }} шт</div>
             <small>Всего продано</small>
         </div>
     </div>
     <div class="col-6 col-sm">
-        <div class="summary-card" style="background: #e8f5e9;">
-            <div class="count" style="font-size: 1.2rem; color: #2e7d32;">{{ sns.sold_normal }}</div>
+        <div class="summary-card" style="background: var(--status-neutral-bg);">
+            <div class="count" style="font-size: 1.2rem; color: var(--status-neutral-text);">{{ sns.sold_normal }}</div>
             <small>Обычные</small>
         </div>
     </div>
     <div class="col-6 col-sm">
-        <div class="summary-card" style="background: #fff9c4;">
-            <div class="count" style="font-size: 1.2rem; color: #f57f17;">{{ sns.sold_d50 }}</div>
+        <div class="summary-card" style="background: var(--status-caution-bg);">
+            <div class="count" style="font-size: 1.2rem; color: var(--status-caution-text);">{{ sns.sold_d50 }}</div>
             <small>Скидка 50%</small>
         </div>
     </div>
     <div class="col-6 col-sm">
-        <div class="summary-card" style="background: #ffe0b2;">
-            <div class="count" style="font-size: 1.2rem; color: #e65100;">{{ sns.sold_d70 }}</div>
+        <div class="summary-card" style="background: var(--status-warning-bg);">
+            <div class="count" style="font-size: 1.2rem; color: var(--status-warning-text);">{{ sns.sold_d70 }}</div>
             <small>Скидка 70%</small>
         </div>
     </div>
     <div class="col-6 col-sm">
-        <div class="summary-card" style="background: #f8d7da;">
-            <div class="count text-danger" style="font-size: 1.2rem;">{{ sns.sold_expired }}</div>
+        <div class="summary-card" style="background: var(--status-critical-bg);">
+            <div class="count" style="font-size: 1.2rem; color: var(--status-critical-text);">{{ sns.sold_expired }}</div>
             <small>Просрочено</small>
         </div>
     </div>
@@ -335,10 +335,10 @@
             <tr>
                 <td><a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a></td>
                 <td class="text-end fw-bold">{{ s.total_sold }}</td>
-                <td class="text-end text-success d-none d-sm-table-cell">{{ s.sold_normal }}</td>
-                <td class="text-end d-none d-sm-table-cell" style="color: #f57f17;">{{ s.sold_d50 }}</td>
-                <td class="text-end" style="color: #e65100;">{{ s.sold_d70 }}</td>
-                <td class="text-end text-danger">{{ s.sold_expired }}</td>
+                <td class="text-end d-none d-sm-table-cell" style="color: var(--status-ok-text);">{{ s.sold_normal }}</td>
+                <td class="text-end d-none d-sm-table-cell" style="color: var(--status-caution-text);">{{ s.sold_d50 }}</td>
+                <td class="text-end" style="color: var(--status-warning-text);">{{ s.sold_d70 }}</td>
+                <td class="text-end" style="color: var(--status-critical-text);">{{ s.sold_expired }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -376,20 +376,20 @@
 
 <div class="row g-2 mb-3">
     <div class="col-4">
-        <div class="summary-card" style="background: #e8f5e9;">
-            <div class="count text-success" style="font-size: 1.2rem;">{{ act_ns.active }}</div>
+        <div class="summary-card" style="background: var(--status-ok-bg);">
+            <div class="count" style="font-size: 1.2rem; color: var(--status-ok-text);">{{ act_ns.active }}</div>
             <small>Заходили</small>
         </div>
     </div>
     <div class="col-4">
-        <div class="summary-card" style="background: #e3f2fd;">
-            <div class="count" style="font-size: 1.2rem; color: #1565c0;">{{ act_ns.entered }}</div>
+        <div class="summary-card" style="background: var(--status-info-bg);">
+            <div class="count" style="font-size: 1.2rem; color: var(--status-info-text);">{{ act_ns.entered }}</div>
             <small>Вносили</small>
         </div>
     </div>
     <div class="col-4">
-        <div class="summary-card" style="background: #fce4ec;">
-            <div class="count text-danger" style="font-size: 1.2rem;">{{ act_ns.inactive }}</div>
+        <div class="summary-card" style="background: var(--status-critical-bg);">
+            <div class="count" style="font-size: 1.2rem; color: var(--status-critical-text);">{{ act_ns.inactive }}</div>
             <small>Не заходили</small>
         </div>
     </div>
@@ -415,14 +415,14 @@
                 </td>
                 <td class="text-center">
                     {% if s and s.logins > 0 %}
-                        <span style="color: #2e7d32; font-size: 1.1rem;">✓</span>
+                        <span style="color: var(--status-ok-text); font-size: 1.1rem;">✓</span>
                     {% else %}
                         <span class="text-muted">✗</span>
                     {% endif %}
                 </td>
                 <td class="text-center">
                     {% if s and (s.batches_added > 0 or s.no_expiry_set > 0) %}
-                        <span style="color: #1565c0; font-size: 1.1rem;">✓</span>
+                        <span style="color: var(--status-info-text); font-size: 1.1rem;">✓</span>
                     {% elif s and s.logins > 0 %}
                         <span class="text-muted">✗</span>
                     {% else %}
@@ -481,7 +481,7 @@
                 {% elif entry.action == 'undo_no_expiry' %}
                     <span class="text-warning">Вернул срок</span>
                 {% elif entry.action == 'promo_photo' %}
-                    <span style="color: #6a1b9a;">📸 Фото акции</span>
+                    <span style="color: var(--kari-purple);">📸 Фото акции</span>
                 {% else %}
                     {{ entry.action }}
                 {% endif %}

@@ -99,7 +99,7 @@
                 </div>
             </div>
             <div class="text-end">
-                <span class="fw-bold" style="color: {{ '#198754' if c_pct >= 80 else ('#856404' if c_pct >= 30 else '#dc3545') }};">{{ c_pct }}%</span>
+                <span class="fw-bold" style="color: {{ 'var(--bar-good)' if c_pct >= 80 else ('var(--bar-mid)' if c_pct >= 30 else 'var(--bar-bad)') }};">{{ c_pct }}%</span>
                 <span class="chevron">▶</span>
             </div>
         </div>
@@ -120,7 +120,7 @@
                     &middot; <span class="text-danger fw-bold">{{ s['ПРОСРОЧЕН'] }} просроч.</span>
                 {% endif %}
                 {% if s.get('Скидка 70%', 0) > 0 %}
-                    &middot; <span style="color:#e65100">{{ s['Скидка 70%'] }} (70%)</span>
+                    &middot; <span style="color: var(--status-warning-text);">{{ s['Скидка 70%'] }} (70%)</span>
                 {% endif %}
                 {% if s.not_filled > 0 %}
                     &middot; <span class="text-secondary">{{ s.not_filled }} ост.</span>
@@ -128,7 +128,7 @@
             </div>
         </div>
         <div class="store-progress">
-            <div class="fw-bold small text-end" style="color: {{ '#198754' if pct >= 80 else ('#856404' if pct >= 30 else '#dc3545') }}; font-size:0.85rem;">
+            <div class="fw-bold small text-end" style="color: {{ 'var(--bar-good)' if pct >= 80 else ('var(--bar-mid)' if pct >= 30 else 'var(--bar-bad)') }}; font-size:0.85rem;">
                 {{ pct }}%
             </div>
             <div class="progress" style="height:6px; width:50px;">
