@@ -89,6 +89,23 @@ def create_app() -> Flask:
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         return response
 
+    # ── Jinja-фильтры ─────────────────────────────────────────────────────
+
+    @app.template_filter("money")
+    def money_filter(value):
+        try:
+            return "{:,.0f}".format(float(value)).replace(",", " ")
+        except (ValueError, TypeError):
+            return "0"
+
+    @app.template_filter("pct_class")
+    def pct_class_filter(pct):
+        if pct >= 80:
+            return "bg-success"
+        elif pct >= 30:
+            return "bg-warning"
+        return "bg-danger"
+
     # ── Авторизация ────────────────────────────────────────────────────────
 
     def login_required(f):
@@ -364,6 +381,96 @@ def create_app() -> Flask:
                                stores=stores,
                                codes=codes, show_codes=True)
 
+    # ── Построение единой структуры для activity ──────────────────────────
+
+    def _build_unified_activity_data(stores_completion, losses, sales_summary,
+                                      summary, promo_status):
+        """Объединяет 5 источников в одну структуру center_data + global_totals."""
+        summary_map = {s["store_number"]: s for s in summary}
+        sales_map = {s["store_number"]: s for s in sales_summary}
+        losses_map = {s.get("store_number", s.get("store", "")): s
+                      for s in losses.get("stores", [])}
+
+        centers = {}
+        for sc in stores_completion:
+            sn = sc["store_number"]
+            cname = sc.get("center_name", "") or "Без центра"
+            if cname not in centers:
+                centers[cname] = {
+                    "center_name": cname,
+                    "center_id": sc.get("center_id", 0),
+                    "stores": [],
+                    "total_items": 0, "total_done": 0, "total_not_filled": 0,
+                    "total_losses": 0, "total_sold": 0,
+                    "active_count": 0, "entered_count": 0, "photo_count": 0,
+                }
+
+            total = sc.get("total", 0)
+            not_filled = sc.get("not_filled", 0)
+            no_expiry = sc.get("no_expiry", 0)
+            filled = total - not_filled - no_expiry
+            done = filled + no_expiry
+            pct = int((done / total) * 100) if total > 0 else 0
+
+            act = summary_map.get(sn, {})
+            has_login = act.get("logins", 0) > 0
+            has_entry = (act.get("batches_added", 0) > 0 or
+                         act.get("no_expiry_set", 0) > 0)
+
+            sale = sales_map.get(sn, {})
+            loss = losses_map.get(sn, {})
+
+            ps = promo_status.get(sn, {})
+
+            row = {
+                "store_number": sn,
+                "completion_pct": pct,
+                "total": total,
+                "not_filled": not_filled,
+                "loss_total": loss.get("total", 0),
+                "sold_total": sale.get("total_sold", 0),
+                "has_login": has_login,
+                "has_entry": has_entry,
+                "duration_minutes": act.get("duration_minutes", 0),
+                "has_photo": ps.get("uploaded_today", False),
+                "photo_count": ps.get("photo_count", 0),
+            }
+
+            c = centers[cname]
+            c["stores"].append(row)
+            c["total_items"] += total
+            c["total_done"] += done
+            c["total_not_filled"] += not_filled
+            c["total_losses"] += loss.get("total", 0)
+            c["total_sold"] += sale.get("total_sold", 0)
+            if has_login:
+                c["active_count"] += 1
+            if has_entry:
+                c["entered_count"] += 1
+            if ps.get("uploaded_today"):
+                c["photo_count"] += 1
+
+        for c in centers.values():
+            c["completion_pct"] = (int((c["total_done"] / c["total_items"]) * 100)
+                                   if c["total_items"] > 0 else 0)
+            c["store_count"] = len(c["stores"])
+
+        all_stores = [s for c in centers.values() for s in c["stores"]]
+        n = len(all_stores) or 1
+        totals = {
+            "avg_completion": int(sum(s["completion_pct"] for s in all_stores) / n),
+            "total_losses": losses.get("totals", {}).get("total", 0),
+            "total_sold": sum(s["sold_total"] for s in all_stores),
+            "active_stores": sum(1 for s in all_stores if s["has_login"]),
+            "entered_stores": sum(1 for s in all_stores if s["has_entry"]),
+            "inactive_stores": sum(1 for s in all_stores if not s["has_login"]),
+            "photo_stores": sum(1 for s in all_stores if s["has_photo"]),
+            "total_stores": len(all_stores),
+        }
+
+        center_list = sorted(centers.values(), key=lambda x: x["center_name"])
+        return center_list, totals
+
     # ── Журнал активности (админ) ─────────────────────────────────────────
 
     @app.route("/activity")
@@ -411,14 +518,18 @@ def create_app() -> Flask:
 
         promo_status = database.get_all_promo_photo_status()
 
+        center_data, global_totals = _build_unified_activity_data(
+            stores_completion, losses, sales_summary, summary, promo_status
+        )
+
         return render_template("activity.html",
-                               summary=summary, log=log,
+                               center_data=center_data,
+                               global_totals=global_totals,
+                               losses_totals=losses.get("totals", {}),
+                               log=log,
                                store_filter=store_filter,
-                               stores_completion=stores_completion,
-                               losses=losses,
                                prices_count=prices_count,
                                fetch_status=fetch_status,
-                               sales_summary=sales_summary,
                                import_history=import_history,
                                promo_status=promo_status)
 

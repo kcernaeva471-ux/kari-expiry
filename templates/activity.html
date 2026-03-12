@@ -2,131 +2,12 @@
 {% block title %}Активность — Kari{% endblock %}
 {% block content %}
 
+<!-- Заголовок + кнопка цен -->
 <div class="page-header">
     <h5>Контроль активности</h5>
-</div>
-
-<p class="section-label">ЗАПОЛНЕННОСТЬ СРОКОВ ГОДНОСТИ</p>
-<div class="table-modern mb-4">
-<div class="table-responsive">
-    <table class="table table-sm align-middle mb-0">
-        <thead>
-            <tr>
-                <th>Магазин</th>
-                <th class="text-end">Всего</th>
-                <th class="text-end d-none d-sm-table-cell">Заполнено</th>
-                <th class="text-end d-none d-sm-table-cell">Без срока</th>
-                <th class="text-end d-none d-sm-table-cell">Тестеры</th>
-                <th class="text-end">Остаток</th>
-                <th style="min-width: 60px;">Прогресс</th>
-                <th class="text-center">Фото</th>
-            </tr>
-        </thead>
-        <tbody>
-            {# --- Предрасчёт: итоги по центрам + set активных магазинов --- #}
-            {% set center_totals = {} %}
-            {% set active_set = {} %}
-            {% for s in summary %}
-                {% if active_set.update({s.store_number: true}) %}{% endif %}
-            {% endfor %}
-            {% for s in stores_completion %}
-            {% if s.total > 0 %}
-                {% set cname = s.get('center_name', '') or 'Без центра' %}
-                {% set filled = s.total - s.not_filled - s.no_expiry %}
-                {% if cname not in center_totals %}
-                    {% if center_totals.update({cname: {'total':0,'filled':0,'noexp':0,'notfilled':0,'testers':0}}) %}{% endif %}
-                {% endif %}
-                {% set ct = center_totals[cname] %}
-                {% if ct.update({'total': ct.total + s.total, 'filled': ct.filled + filled, 'noexp': ct.noexp + s.no_expiry, 'notfilled': ct.notfilled + s.not_filled, 'testers': ct.testers + s.get('testers',0)}) %}{% endif %}
-            {% endif %}
-            {% endfor %}
-
-            {# --- Отрисовка: заголовок центра (видны) → строки магазинов (скрыты) --- #}
-            {% set cns = namespace(current_center='') %}
-            {% for s in stores_completion %}
-            {% if s.total > 0 %}
-            {% set cname = s.get('center_name', '') or 'Без центра' %}
-
-            {% if cname != cns.current_center %}
-                {% set cns.current_center = cname %}
-                {% set ct = center_totals.get(cname, {}) %}
-                {% set c_done = ct.get('filled',0) + ct.get('noexp',0) %}
-                {% set c_pct = ((c_done / ct.get('total',1)) * 100) | int if ct.get('total',0) > 0 else 0 %}
-                <tr class="center-header" style="cursor: pointer;"
-                    data-cid="{{ s.center_id or 0 }}">
-                    <td colspan="99" style="background: var(--kari-purple); color: #fff; padding: 8px 10px;">
-                        <span class="center-arrow">▶</span>
-                        <b>{{ cname }}</b>
-                        <span style="opacity:0.8; margin-left: 6px; font-size: 0.75rem;">
-                            {{ ct.get('total',0) }} шт · остаток {{ ct.get('notfilled',0) }} · {{ c_pct }}%
-                        </span>
-                    </td>
-                </tr>
-            {% endif %}
-
-            {% set filled = s.total - s.not_filled - s.no_expiry %}
-            {% set done = filled + s.no_expiry %}
-            {% set pct = ((done / s.total) * 100) | int if s.total > 0 else 0 %}
-            {% set is_active = s.store_number in active_set %}
-            <tr class="center-row" data-cid="{{ s.center_id or 0 }}" style="display:none;">
-                <td>
-                    <a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a>
-                    {% if not is_active %}
-                        <span class="text-muted" style="font-size:0.65rem; font-weight:400;"> нет активности</span>
-                    {% endif %}
-                </td>
-                <td class="text-end">{{ s.total }}</td>
-                <td class="text-end d-none d-sm-table-cell">{{ filled }}</td>
-                <td class="text-end d-none d-sm-table-cell">{{ s.no_expiry }}</td>
-                <td class="text-end d-none d-sm-table-cell">
-                    {% if s.get('testers', 0) > 0 %}
-                        <span style="color: var(--kari-purple);">{{ s.testers }}</span>
-                    {% else %}
-                        <span class="text-muted">—</span>
-                    {% endif %}
-                </td>
-                <td class="text-end">
-                    {% if s.not_filled > 0 %}
-                        <span class="fw-bold" style="color: #991E66;">{{ s.not_filled }}</span>
-                    {% else %}
-                        <span class="text-success">0</span>
-                    {% endif %}
-                </td>
-                <td>
-                    <div class="progress" style="height: 18px;">
-                        <div class="progress-bar {{ 'bg-success' if pct >= 80 else ('bg-warning text-dark' if pct >= 30 else 'bg-danger') }}"
-                             style="width: {{ pct }}%;" role="progressbar">
-                            {{ pct }}%
-                        </div>
-                    </div>
-                </td>
-                <td class="text-center">
-                    {% set ps = promo_status.get(s.store_number, {}) %}
-                    {% if ps.get('uploaded_today') %}
-                        <span style="color: var(--status-ok-text); font-size: 1.1rem; cursor: pointer;"
-                              title="Фото загружено ({{ ps.photo_count }})"
-                              onclick="showPhotos('{{ s.store_number }}')">✓ {{ ps.photo_count }}</span>
-                    {% elif s.not_filled < s.total %}
-                        <span class="text-danger" title="Фото не загружено">✗</span>
-                    {% else %}
-                        <span class="text-muted">—</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endif %}
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-</div>
-
-
-<!-- Потери в деньгах -->
-<div class="d-flex justify-content-between align-items-center mb-2">
-    <p class="section-label mb-0">РОЗНИЧНАЯ СТОИМОСТЬ</p>
     <div class="d-flex align-items-center gap-2">
-        <small class="text-muted">Цены: {{ prices_count.fetched }}/{{ prices_count.total }}{% if prices_count.get('not_found', 0) > 0 %} ({{ prices_count.not_found }} не найдено){% endif %}</small>
-        <button class="btn btn-sm" style="border: 1px solid #991E66; color: #991E66;" id="btn-fetch-prices" onclick="fetchPrices()">
+        <small class="text-muted d-none d-sm-inline">Цены: {{ prices_count.fetched }}/{{ prices_count.total }}{% if prices_count.get('not_found', 0) > 0 %} ({{ prices_count.not_found }} н/н){% endif %}</small>
+        <button class="btn btn-sm" style="border: 1px solid var(--kari-purple); color: var(--kari-purple); font-size: 0.75rem;" id="btn-fetch-prices" onclick="fetchPrices()">
             Обновить цены
         </button>
     </div>
@@ -139,66 +20,48 @@
     </div>
 </div>
 
-{# Карта заполненности по магазинам для колонки потерь #}
-{% set completion_map = {} %}
-{% set ns = namespace(total_all=0, done_all=0) %}
-{% for sc in stores_completion %}
-    {% if sc.total > 0 %}
-        {% set done = sc.total - sc.not_filled %}
-        {% set pct = ((done / sc.total) * 100) | int %}
-        {% if completion_map.update({sc.store_number: pct}) %}{% endif %}
-        {% set ns.total_all = ns.total_all + sc.total %}
-        {% set ns.done_all = ns.done_all + done %}
-    {% endif %}
-{% endfor %}
-{% set avg_pct = ((ns.done_all / ns.total_all) * 100) | int if ns.total_all > 0 else 0 %}
-
-{% if losses.totals.total > 0 %}
+<!-- KPI-карточки (6 штук) -->
 <div class="row g-2 mb-3">
-    <div class="col-6 col-sm">
-        <div class="summary-card" style="background: var(--status-critical-bg);">
-            <div class="count" style="font-size: 1.2rem; color: var(--status-critical-text);">{{ '{:,.0f}'.format(losses.totals.expired).replace(',', ' ') }} ₽</div>
-            <small>Просрочен</small>
+    <div class="col-4 col-sm">
+        <div class="summary-card" style="background: {{ 'var(--status-ok-bg)' if global_totals.avg_completion >= 80 else ('var(--status-caution-bg)' if global_totals.avg_completion >= 50 else 'var(--status-critical-bg)') }};">
+            <div class="count" style="font-size: 1.2rem; color: {{ 'var(--status-ok-text)' if global_totals.avg_completion >= 80 else ('var(--status-caution-text)' if global_totals.avg_completion >= 50 else 'var(--status-critical-text)') }};">{{ global_totals.avg_completion }}%</div>
+            <small>Заполнено</small>
         </div>
     </div>
-    <div class="col-6 col-sm">
+    <div class="col-4 col-sm">
         <div class="summary-card" style="background: var(--status-warning-bg);">
-            <div class="count" style="font-size: 1.2rem; color: var(--status-warning-text);">{{ '{:,.0f}'.format(losses.totals.d70).replace(',', ' ') }} ₽</div>
-            <small>Скидка 70%</small>
+            <div class="count" style="font-size: 1.2rem; color: var(--status-warning-text);">{{ global_totals.total_losses | money }} ₽</div>
+            <small>Потери</small>
         </div>
     </div>
-    <div class="col-6 col-sm">
-        <div class="summary-card" style="background: var(--status-caution-bg);">
-            <div class="count" style="font-size: 1.2rem; color: var(--status-caution-text);">{{ '{:,.0f}'.format(losses.totals.d50).replace(',', ' ') }} ₽</div>
-            <small>Скидка 50%</small>
+    <div class="col-4 col-sm">
+        <div class="summary-card" style="background: var(--status-info-bg);">
+            <div class="count" style="font-size: 1.2rem; color: var(--status-info-text);">{{ global_totals.total_sold }}</div>
+            <small>Продано 7д</small>
         </div>
     </div>
-    <div class="col-6 col-sm">
+    <div class="col-4 col-sm">
+        <div class="summary-card" style="background: var(--status-ok-bg);">
+            <div class="count" style="font-size: 1.2rem; color: var(--status-ok-text);">{{ global_totals.active_stores }}</div>
+            <small>Заходили</small>
+        </div>
+    </div>
+    <div class="col-4 col-sm">
         <div class="summary-card" style="background: var(--status-neutral-bg);">
-            <div class="count" style="font-size: 1.2rem; color: var(--status-neutral-text);">{{ '{:,.0f}'.format(losses.totals.total).replace(',', ' ') }} ₽</div>
-            <small>Итого стоимость</small>
+            <div class="count" style="font-size: 1.2rem; color: var(--status-neutral-text);">{{ global_totals.entered_stores }}</div>
+            <small>Вносили</small>
         </div>
     </div>
-    <div class="col-6 col-sm">
-        <div class="summary-card" style="background: {{ 'var(--status-ok-bg)' if avg_pct >= 80 else ('var(--status-caution-bg)' if avg_pct >= 50 else 'var(--status-critical-bg)') }};">
-            <div class="count" style="font-size: 1.2rem; color: {{ 'var(--status-ok-text)' if avg_pct >= 80 else ('var(--status-caution-text)' if avg_pct >= 50 else 'var(--status-critical-text)') }};">{{ avg_pct }}%</div>
-            <small>Заполнено (сред.)</small>
+    <div class="col-4 col-sm">
+        <div class="summary-card" style="background: var(--status-critical-bg);">
+            <div class="count" style="font-size: 1.2rem; color: var(--status-critical-text);">{{ global_totals.inactive_stores }}</div>
+            <small>Не заходили</small>
         </div>
     </div>
 </div>
 
-{% if losses.stores %}
-{# Предрасчёт итогов стоимости по центрам #}
-{% set loss_ct = {} %}
-{% for s in losses.stores %}
-    {% set cname = s.get('center_name', '') or 'Без центра' %}
-    {% if cname not in loss_ct %}
-        {% if loss_ct.update({cname: {'expired':0,'d70':0,'d50':0,'total':0,'stores':0,'done_sum':0,'total_sum':0}}) %}{% endif %}
-    {% endif %}
-    {% set lc = loss_ct[cname] %}
-    {% set spct = completion_map.get(s.store_number, 0) %}
-    {% if lc.update({'expired': lc.expired+s.expired, 'd70': lc.d70+s.d70, 'd50': lc.d50+s.d50, 'total': lc.total+s.total, 'stores': lc.stores+1, 'done_sum': lc.done_sum+spct, 'total_sum': lc.total_sum+1}) %}{% endif %}
-{% endfor %}
+<!-- Единая таблица МАГАЗИНЫ ПО ЦЕНТРАМ -->
+<p class="section-label">МАГАЗИНЫ ПО ЦЕНТРАМ</p>
 
 <div class="table-modern mb-4">
 <div class="table-responsive">
@@ -206,64 +69,137 @@
         <thead>
             <tr>
                 <th>Магазин</th>
-                <th class="text-end">Просрочка</th>
-                <th class="text-end d-none d-sm-table-cell">70%</th>
-                <th class="text-end d-none d-sm-table-cell">50%</th>
-                <th class="text-end fw-bold">Итого</th>
-                <th style="min-width: 60px;">Заполнено</th>
+                <th style="min-width: 60px;">Прогресс</th>
+                <th class="text-end d-none d-md-table-cell">Потери ₽</th>
+                <th class="text-end d-none d-sm-table-cell">Продано</th>
+                <th class="text-center">Вход</th>
+                <th class="text-center">Данные</th>
+                <th class="text-center d-none d-sm-table-cell">Фото</th>
             </tr>
         </thead>
         <tbody>
-            {% set lns = namespace(current_center='', cid=0) %}
-            {% for s in losses.stores | sort(attribute='center_name') %}
-            {% set cname = s.get('center_name', '') or 'Без центра' %}
-            {% if cname != lns.current_center %}
-                {% set lns.current_center = cname %}
-                {% set lns.cid = lns.cid + 1 %}
-                {% set lc = loss_ct.get(cname, {}) %}
-                {% set lc_pct = (lc.get('done_sum',0) / lc.get('total_sum',1)) | int if lc.get('total_sum',0) > 0 else 0 %}
-                <tr class="loss-center-header" style="cursor:pointer; background: var(--kari-purple); color:#fff;"
-                    data-lcid="{{ lns.cid }}">
-                    <td colspan="99" style="padding: 8px 10px;">
-                        <span class="loss-center-arrow">▶</span>
-                        <b>{{ cname }}</b>
-                        <span style="opacity:0.85; margin-left:6px; font-size:0.75rem;">
-                            {{ '{:,.0f}'.format(lc.get('total',0)).replace(',', ' ') }} ₽ · {{ lc.get('stores',0) }} маг. · {{ lc_pct }}%
-                        </span>
-                    </td>
-                </tr>
-            {% endif %}
-            {% set spct = completion_map.get(s.store_number, 0) %}
-            <tr class="loss-center-row" data-lcid="{{ lns.cid }}" style="display:none;">
-                <td><a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a></td>
-                <td class="text-end" style="color: var(--status-critical-text);">{{ '{:,.0f}'.format(s.expired).replace(',', ' ') }}</td>
-                <td class="text-end d-none d-sm-table-cell" style="color: var(--status-warning-text);">{{ '{:,.0f}'.format(s.d70).replace(',', ' ') }}</td>
-                <td class="text-end d-none d-sm-table-cell" style="color: var(--status-caution-text);">{{ '{:,.0f}'.format(s.d50).replace(',', ' ') }}</td>
-                <td class="text-end fw-bold">{{ '{:,.0f}'.format(s.total).replace(',', ' ') }} ₽</td>
-                <td>
-                    <div class="progress" style="height: 18px;">
-                        <div class="progress-bar {{ 'bg-success' if spct >= 80 else ('bg-warning' if spct >= 50 else 'bg-danger') }}"
-                             style="width: {{ spct }}%;" role="progressbar">
-                            {{ spct }}%
+            {% for center in center_data %}
+            {# Строка центра (кликабельная) #}
+            <tr class="unified-center-header" data-ucid="{{ loop.index }}" style="cursor: pointer;">
+                <td colspan="99" style="background: var(--kari-purple); color: #fff; padding: 8px 10px;">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="unified-arrow">▶</span>
+                            <b>{{ center.center_name }}</b>
+                            <span class="d-none d-sm-inline" style="opacity:0.85; margin-left:6px; font-size:0.72rem;">
+                                {{ center.store_count }} маг. · {{ center.completion_pct }}%
+                                {% if center.total_losses > 0 %} · {{ center.total_losses | money }} ₽{% endif %}
+                                · {{ center.total_sold }} прод.
+                                · {{ center.active_count }}/{{ center.store_count }} акт.
+                            </span>
+                            <span class="d-sm-none" style="opacity:0.85; margin-left:4px; font-size:0.68rem;">
+                                {{ center.store_count }} маг. · {{ center.completion_pct }}% · {{ center.active_count }}/{{ center.store_count }}
+                            </span>
                         </div>
+                        <span class="fw-bold" style="font-size: 1rem;">{{ center.completion_pct }}%</span>
+                    </div>
+                    <div class="progress mt-1" style="height: 6px; background: rgba(255,255,255,0.25);">
+                        <div class="progress-bar" style="width: {{ center.completion_pct }}%; background: rgba(255,255,255,0.9); border-radius: 6px;"></div>
                     </div>
                 </td>
             </tr>
+
+            {# Строки магазинов (скрыты по умолчанию) #}
+            {% for s in center.stores %}
+            <tr class="unified-center-row" data-ucid="{{ loop.parent.loop.index }}" style="display: none;">
+                <td>
+                    <a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a>
+                    {% if not s.has_login %}
+                        <span class="text-muted" style="font-size:0.6rem;"> нет акт.</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="progress" style="height: 18px;">
+                        <div class="progress-bar {{ s.completion_pct | pct_class }}"
+                             style="width: {{ s.completion_pct }}%;" role="progressbar">
+                            {{ s.completion_pct }}%
+                        </div>
+                    </div>
+                </td>
+                <td class="text-end d-none d-md-table-cell">
+                    {% if s.loss_total > 0 %}
+                        <span style="color: var(--status-critical-text);">{{ s.loss_total | money }}</span>
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td class="text-end d-none d-sm-table-cell">
+                    {% if s.sold_total > 0 %}
+                        <span style="color: var(--status-info-text);">{{ s.sold_total }}</span>
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if s.has_login %}
+                        <span style="color: var(--status-ok-text); font-size: 1.1rem;">✓</span>
+                    {% else %}
+                        <span class="text-muted">✗</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if s.has_entry %}
+                        <span style="color: var(--status-info-text); font-size: 1.1rem;">✓</span>
+                    {% elif s.has_login %}
+                        <span class="text-muted">✗</span>
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td class="text-center d-none d-sm-table-cell">
+                    {% if s.has_photo %}
+                        <span style="color: var(--status-ok-text); font-size: 1.1rem; cursor: pointer;"
+                              title="Фото загружено ({{ s.photo_count }})"
+                              onclick="showPhotos('{{ s.store_number }}')">✓ {{ s.photo_count }}</span>
+                    {% elif s.has_entry %}
+                        <span class="text-danger" title="Фото не загружено">✗</span>
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
             {% endfor %}
         </tbody>
     </table>
 </div>
 </div>
-{% endif %}
 
-{% else %}
-<div class="alert alert-secondary py-2 small mb-4">
-    Нет данных о стоимости. Нажмите «Обновить цены» чтобы загрузить цены с kari.com.
+<!-- Структура потерь (4 карточки) -->
+{% if losses_totals.get('total', 0) > 0 %}
+<p class="section-label">СТРУКТУРА ПОТЕРЬ</p>
+<div class="row g-2 mb-3">
+    <div class="col-6 col-sm-3">
+        <div class="summary-card" style="background: var(--status-critical-bg);">
+            <div class="count" style="font-size: 1.1rem; color: var(--status-critical-text);">{{ losses_totals.expired | money }} ₽</div>
+            <small>Просрочен</small>
+        </div>
+    </div>
+    <div class="col-6 col-sm-3">
+        <div class="summary-card" style="background: var(--status-warning-bg);">
+            <div class="count" style="font-size: 1.1rem; color: var(--status-warning-text);">{{ losses_totals.d70 | money }} ₽</div>
+            <small>Скидка 70%</small>
+        </div>
+    </div>
+    <div class="col-6 col-sm-3">
+        <div class="summary-card" style="background: var(--status-caution-bg);">
+            <div class="count" style="font-size: 1.1rem; color: var(--status-caution-text);">{{ losses_totals.d50 | money }} ₽</div>
+            <small>Скидка 50%</small>
+        </div>
+    </div>
+    <div class="col-6 col-sm-3">
+        <div class="summary-card" style="background: var(--status-neutral-bg);">
+            <div class="count" style="font-size: 1.1rem; color: var(--status-neutral-text);">{{ losses_totals.total | money }} ₽</div>
+            <small>Итого</small>
+        </div>
+    </div>
 </div>
 {% endif %}
-
-<!-- Реализация (продажи) -->
-<p class="section-label">РЕАЛИЗАЦИЯ ЗА НЕДЕЛЮ</p>
 
 {% if import_history %}
 <div class="small text-muted mb-2">
@@ -274,184 +210,7 @@
 </div>
 {% endif %}
 
-{% if sales_summary %}
-{% set sns = namespace(total_sold=0, sold_expired=0, sold_d70=0, sold_d50=0, sold_normal=0) %}
-{% for s in sales_summary %}
-    {% set sns.total_sold = sns.total_sold + s.total_sold %}
-    {% set sns.sold_expired = sns.sold_expired + s.sold_expired %}
-    {% set sns.sold_d70 = sns.sold_d70 + s.sold_d70 %}
-    {% set sns.sold_d50 = sns.sold_d50 + s.sold_d50 %}
-    {% set sns.sold_normal = sns.sold_normal + s.sold_normal %}
-{% endfor %}
-
-<div class="row g-2 mb-3">
-    <div class="col-6 col-sm">
-        <div class="summary-card" style="background: var(--status-ok-bg);">
-            <div class="count" style="font-size: 1.2rem; color: var(--status-ok-text);">{{ sns.total_sold }} шт</div>
-            <small>Всего продано</small>
-        </div>
-    </div>
-    <div class="col-6 col-sm">
-        <div class="summary-card" style="background: var(--status-neutral-bg);">
-            <div class="count" style="font-size: 1.2rem; color: var(--status-neutral-text);">{{ sns.sold_normal }}</div>
-            <small>Обычные</small>
-        </div>
-    </div>
-    <div class="col-6 col-sm">
-        <div class="summary-card" style="background: var(--status-caution-bg);">
-            <div class="count" style="font-size: 1.2rem; color: var(--status-caution-text);">{{ sns.sold_d50 }}</div>
-            <small>Скидка 50%</small>
-        </div>
-    </div>
-    <div class="col-6 col-sm">
-        <div class="summary-card" style="background: var(--status-warning-bg);">
-            <div class="count" style="font-size: 1.2rem; color: var(--status-warning-text);">{{ sns.sold_d70 }}</div>
-            <small>Скидка 70%</small>
-        </div>
-    </div>
-    <div class="col-6 col-sm">
-        <div class="summary-card" style="background: var(--status-critical-bg);">
-            <div class="count" style="font-size: 1.2rem; color: var(--status-critical-text);">{{ sns.sold_expired }}</div>
-            <small>Просрочено</small>
-        </div>
-    </div>
-</div>
-
-<div class="table-modern mb-4">
-<div class="table-responsive">
-    <table class="table table-sm align-middle mb-0">
-        <thead>
-            <tr>
-                <th>Магазин</th>
-                <th class="text-end">Продано</th>
-                <th class="text-end d-none d-sm-table-cell">Обычные</th>
-                <th class="text-end d-none d-sm-table-cell">50%</th>
-                <th class="text-end">70%</th>
-                <th class="text-end">Просрочка</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for s in sales_summary %}
-            <tr>
-                <td><a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a></td>
-                <td class="text-end fw-bold">{{ s.total_sold }}</td>
-                <td class="text-end d-none d-sm-table-cell" style="color: var(--status-ok-text);">{{ s.sold_normal }}</td>
-                <td class="text-end d-none d-sm-table-cell" style="color: var(--status-caution-text);">{{ s.sold_d50 }}</td>
-                <td class="text-end" style="color: var(--status-warning-text);">{{ s.sold_d70 }}</td>
-                <td class="text-end" style="color: var(--status-critical-text);">{{ s.sold_expired }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-</div>
-{% else %}
-<div class="alert alert-secondary py-2 small mb-4">
-    Нет данных о продажах. Загрузите остатки повторно для отслеживания изменений.
-</div>
-{% endif %}
-
-<!-- Сводка активности -->
-<p class="section-label">АКТИВНОСТЬ ПО МАГАЗИНАМ</p>
-
-{# Собираем map активности для быстрого доступа #}
-{% set summary_map = {} %}
-{% for s in summary %}
-    {% if summary_map.update({s.store_number: s}) %}{% endif %}
-{% endfor %}
-
-{# Считаем статистику #}
-{% set act_ns = namespace(active=0, entered=0, inactive=0) %}
-{% for sc in stores_completion %}
-    {% set s = summary_map.get(sc.store_number) %}
-    {% if s and s.logins > 0 %}
-        {% set act_ns.active = act_ns.active + 1 %}
-        {% if s.batches_added > 0 or s.no_expiry_set > 0 %}
-            {% set act_ns.entered = act_ns.entered + 1 %}
-        {% endif %}
-    {% else %}
-        {% set act_ns.inactive = act_ns.inactive + 1 %}
-    {% endif %}
-{% endfor %}
-
-<div class="row g-2 mb-3">
-    <div class="col-4">
-        <div class="summary-card" style="background: var(--status-ok-bg);">
-            <div class="count" style="font-size: 1.2rem; color: var(--status-ok-text);">{{ act_ns.active }}</div>
-            <small>Заходили</small>
-        </div>
-    </div>
-    <div class="col-4">
-        <div class="summary-card" style="background: var(--status-info-bg);">
-            <div class="count" style="font-size: 1.2rem; color: var(--status-info-text);">{{ act_ns.entered }}</div>
-            <small>Вносили</small>
-        </div>
-    </div>
-    <div class="col-4">
-        <div class="summary-card" style="background: var(--status-critical-bg);">
-            <div class="count" style="font-size: 1.2rem; color: var(--status-critical-text);">{{ act_ns.inactive }}</div>
-            <small>Не заходили</small>
-        </div>
-    </div>
-</div>
-
-<div class="table-modern mb-4">
-<div class="table-responsive">
-    <table class="table table-sm mb-0 align-middle">
-        <thead>
-            <tr>
-                <th>Магазин</th>
-                <th class="text-center">Заходили</th>
-                <th class="text-center">Вносили</th>
-                <th class="text-center">Время</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for sc in stores_completion %}
-            {% set s = summary_map.get(sc.store_number) %}
-            <tr>
-                <td>
-                    <a href="/activity?store={{ sc.store_number }}" class="fw-bold">{{ sc.store_number }}</a>
-                </td>
-                <td class="text-center">
-                    {% if s and s.logins > 0 %}
-                        <span style="color: var(--status-ok-text); font-size: 1.1rem;">✓</span>
-                    {% else %}
-                        <span class="text-muted">✗</span>
-                    {% endif %}
-                </td>
-                <td class="text-center">
-                    {% if s and (s.batches_added > 0 or s.no_expiry_set > 0) %}
-                        <span style="color: var(--status-info-text); font-size: 1.1rem;">✓</span>
-                    {% elif s and s.logins > 0 %}
-                        <span class="text-muted">✗</span>
-                    {% else %}
-                        <span class="text-muted">—</span>
-                    {% endif %}
-                </td>
-                <td class="text-center">
-                    {% if s and s.duration_minutes and s.duration_minutes > 0 %}
-                        <small class="fw-bold">
-                        {% if s.duration_minutes >= 60 %}
-                            {{ (s.duration_minutes // 60) }}ч {{ (s.duration_minutes % 60) }}м
-                        {% else %}
-                            {{ s.duration_minutes }}м
-                        {% endif %}
-                        </small>
-                    {% elif s and s.logins > 0 %}
-                        <small class="text-muted">&lt;1м</small>
-                    {% else %}
-                        <span class="text-muted">—</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-</div>
-
-<!-- Фильтр -->
+<!-- Фильтр журнала -->
 <div class="d-flex gap-2 mb-2 align-items-center">
     <p class="section-label mb-0">ЖУРНАЛ</p>
     {% if store_filter %}
@@ -517,10 +276,11 @@
 </div>
 
 <script>
-function toggleCenter(headerEl) {
-    var cid = headerEl.getAttribute('data-cid');
-    var rows = document.querySelectorAll('.center-row[data-cid="' + cid + '"]');
-    var arrow = headerEl.querySelector('.center-arrow');
+/* Единый тоггл центров */
+function toggleUnifiedCenter(headerEl) {
+    var ucid = headerEl.getAttribute('data-ucid');
+    var rows = document.querySelectorAll('.unified-center-row[data-ucid="' + ucid + '"]');
+    var arrow = headerEl.querySelector('.unified-arrow');
     var visible = rows.length > 0 && rows[0].style.display !== 'none';
     for (var i = 0; i < rows.length; i++) {
         rows[i].style.display = visible ? 'none' : '';
@@ -528,28 +288,11 @@ function toggleCenter(headerEl) {
     if (arrow) arrow.textContent = visible ? '▶' : '▼';
 }
 
-// Центры: по клику раскрываем/сворачиваем
-document.querySelectorAll('.center-header').forEach(function(tr) {
-    tr.addEventListener('click', function() { toggleCenter(tr); });
+document.querySelectorAll('.unified-center-header').forEach(function(tr) {
+    tr.addEventListener('click', function() { toggleUnifiedCenter(tr); });
 });
 
-// Центры потерь: по клику раскрываем/сворачиваем
-function toggleLossCenter(headerEl) {
-    var lcid = headerEl.getAttribute('data-lcid');
-    var rows = document.querySelectorAll('.loss-center-row[data-lcid="' + lcid + '"]');
-    var arrow = headerEl.querySelector('.loss-center-arrow');
-    var visible = rows.length > 0 && rows[0].style.display !== 'none';
-    for (var i = 0; i < rows.length; i++) {
-        rows[i].style.display = visible ? 'none' : '';
-    }
-    if (arrow) arrow.textContent = visible ? '▶' : '▼';
-}
-document.querySelectorAll('.loss-center-header').forEach(function(tr) {
-    tr.addEventListener('click', function() { toggleLossCenter(tr); });
-});
-
-// Все центры свёрнуты по умолчанию (строки скрыты в HTML, стрелки ▶)
-
+/* Обновление цен */
 function fetchPrices() {
     var btn = document.getElementById('btn-fetch-prices');
     var progress = document.getElementById('fetch-progress');
@@ -587,6 +330,7 @@ function pollStatus() {
 pollStatus();
 {% endif %}
 
+/* Просмотр фото */
 function showPhotos(storeNumber) {
     document.getElementById('photoStoreNum').textContent = storeNumber;
     var body = document.getElementById('photoModalBody');

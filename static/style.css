@@ -476,6 +476,28 @@ body {
     font-weight: 700;
 }
 
+/* ── Unified-таблица (activity redesign) ───────────────────────────── */
+
+.unified-center-header td {
+    background: var(--kari-purple) !important;
+    color: #fff !important;
+    font-weight: 700;
+    padding: 8px 10px !important;
+    border: none !important;
+}
+.unified-center-header:hover td {
+    background: var(--kari-dark) !important;
+}
+.unified-arrow {
+    display: inline-block;
+    width: 16px;
+    font-size: 0.7rem;
+    transition: transform 0.2s;
+}
+.unified-center-row:hover {
+    background: var(--kari-light) !important;
+}
+
 /* ── Кнопки ────────────────────────────────────────────────────────── */
 
 .btn-kari {
