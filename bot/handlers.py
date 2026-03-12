@@ -7,11 +7,12 @@
 import logging
 from datetime import datetime, time as dtime
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatMemberUpdated
 from telegram.ext import (
     Application,
     CommandHandler,
     CallbackQueryHandler,
+    ChatMemberHandler,
     ContextTypes,
 )
 
@@ -417,6 +418,52 @@ async def cmd_trigger(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Неизвестный триггер: {trigger}")
 
 
+# ── Приветствие при добавлении в группу ────────────────────────────────────
+
+WELCOME_GROUP_MESSAGE = (
+    "👋 Здравствуйте! Я бот системы контроля сроков годности.\n\n"
+    "📱 *Сайт:* kari-realizaciya.ru\n\n"
+    "🔑 *Вход для магазинов:*\n"
+    "• Логин — номер магазина (например 10065)\n"
+    "• Пароль — номер магазина\n\n"
+    "🔖 *Добавьте иконку на телефон:*\n"
+    "• iPhone: Safari → «Поделиться» → «На экран Домой»\n"
+    "• Android: Chrome → ⋮ → «Добавить на главный экран»\n\n"
+    "✅ *Что нужно сделать:*\n"
+    "1. Зайти в приложение по своему номеру\n"
+    "2. Открыть каждый товар → указать дату производства и срок годности\n"
+    "3. Система сама рассчитает статус: просрочен / 70% / 50% / в норме\n"
+    "4. Загрузить фото акционной зоны 📸\n\n"
+    "🤖 *Я буду:*\n"
+    "• Напоминать, когда товар просрочен и требует списания\n"
+    "• Сообщать, когда товар подошёл к скидке 70% или 50%\n"
+    "• Присылать сводку по магазину\n\n"
+    "💬 Мы открыты к диалогу — пишите пожелания по доработке!"
+)
+
+
+async def on_bot_added_to_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Отправляет приветствие когда бота добавляют в группу."""
+    result: ChatMemberUpdated = update.my_chat_member
+    if result is None:
+        return
+
+    old_status = result.old_chat_member.status if result.old_chat_member else None
+    new_status = result.new_chat_member.status if result.new_chat_member else None
+
+    if old_status in (None, "left", "kicked") and new_status in ("member", "administrator"):
+        chat = result.chat
+        logger.info(f"Бот добавлен в группу: {chat.title} (ID: {chat.id})")
+        try:
+            await context.bot.send_message(
+                chat_id=chat.id,
+                text=WELCOME_GROUP_MESSAGE,
+                parse_mode="Markdown",
+            )
+        except Exception as e:
+            logger.error(f"Ошибка отправки приветствия в группу {chat.id}: {e}")
+
+
 # ── Создание Application ──────────────────────────────────────────────────
 
 def create_bot_application():
@@ -432,6 +479,7 @@ def create_bot_application():
     app.add_handler(CommandHandler("report", cmd_report))
     app.add_handler(CommandHandler("urgent", cmd_urgent))
     app.add_handler(CommandHandler("trigger", cmd_trigger))
+    app.add_handler(ChatMemberHandler(on_bot_added_to_group, ChatMemberHandler.MY_CHAT_MEMBER))
 
     # Расписание триггеров (Moscow time)
     jq = app.job_queue
