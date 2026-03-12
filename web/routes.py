@@ -673,6 +673,21 @@ def create_app() -> Flask:
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+    @app.route("/api/reset-sales", methods=["POST"])
+    @login_required
+    @admin_required
+    def api_reset_sales():
+        """Сброс некорректных данных о продажах."""
+        try:
+            result = database.reset_sales_data()
+            database.log_activity(
+                "admin", "reset_sales",
+                f"Сброс продаж: удалено {result['changes_deleted']} изменений, "
+                f"{result['snapshots_deleted']} снимков")
+            return jsonify({"ok": True, **result})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
     # ── Центры (админ) ──────────────────────────────────────────────────
 
     @app.route("/centers")

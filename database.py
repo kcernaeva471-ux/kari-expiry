@@ -376,6 +376,17 @@ def undo_import(snapshot_id: int) -> dict:
     return {"restored": restored, "deleted": deleted, "snapshot_id": snapshot_id}
 
 
+def reset_sales_data():
+    """Сбрасывает все данные о продажах (stock_changes + stock_snapshots)."""
+    db = get_db()
+    changes_count = db.execute("SELECT COUNT(*) FROM stock_changes").fetchone()[0]
+    snapshots_count = db.execute("SELECT COUNT(*) FROM stock_snapshots").fetchone()[0]
+    db.execute("DELETE FROM stock_changes")
+    db.execute("DELETE FROM stock_snapshots")
+    db.commit()
+    return {"changes_deleted": changes_count, "snapshots_deleted": snapshots_count}
+
+
 def get_last_snapshot() -> dict:
     """Возвращает последний снимок импорта."""
     db = get_db()
