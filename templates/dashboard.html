@@ -64,6 +64,19 @@
 <p class="section-label">МАГАЗИНЫ</p>
 
 <!-- Карточки магазинов по центрам -->
+{# Предрасчёт итогов по центрам #}
+{% set dash_ct = {} %}
+{% for s in stores %}
+    {% set cname = s.get('center_name', '') or 'Без центра' %}
+    {% if cname not in dash_ct %}
+        {% if dash_ct.update({cname: {'count':0,'total':0,'done':0,'not_filled':0}}) %}{% endif %}
+    {% endif %}
+    {% set ct = dash_ct[cname] %}
+    {% set filled = s.total - s.not_filled - s.no_expiry %}
+    {% set done = filled + s.no_expiry %}
+    {% if ct.update({'count': ct.count+1, 'total': ct.total+s.total, 'done': ct.done+done, 'not_filled': ct.not_filled+s.not_filled}) %}{% endif %}
+{% endfor %}
+
 {% set ns = namespace(current_center='', group_open=false) %}
 {% for s in stores %}
     {% set cname = s.get('center_name', '') or 'Без центра' %}
@@ -71,24 +84,26 @@
     {% if cname != ns.current_center %}
         {% if ns.group_open %}</div>{% endif %}
         {% set ns.current_center = cname %}
+        {% set ct = dash_ct.get(cname, {}) %}
+        {% set c_pct = ((ct.get('done',0) / ct.get('total',1)) * 100) | int if ct.get('total',0) > 0 else 0 %}
 
-        {# Считаем магазины в этом центре #}
-        {% set center_stores = [] %}
-        {% for cs in stores %}
-            {% if (cs.get('center_name', '') or 'Без центра') == cname %}
-                {% if center_stores.append(cs) %}{% endif %}
-            {% endif %}
-        {% endfor %}
-
-        <!-- Заголовок центра -->
-        <div class="group-header" onclick="this.classList.toggle('collapsed'); var b=this.nextElementSibling; b.style.display=this.classList.contains('collapsed')?'none':'block';">
-            <div>
+        <!-- Заголовок центра (свёрнут) -->
+        <div class="group-header collapsed" onclick="this.classList.toggle('collapsed'); var b=this.nextElementSibling; b.style.display=this.classList.contains('collapsed')?'none':'block';">
+            <div style="flex:1;">
                 <span class="group-name">{{ cname }}</span>
-                <span class="group-meta">{{ center_stores | length }} маг.</span>
+                <span class="group-meta">{{ ct.get('count',0) }} маг. · {{ ct.get('total',0) }} тов. · ост. {{ ct.get('not_filled',0) }}</span>
+                <div class="progress mt-1" style="height:8px; max-width:200px;">
+                    <div class="progress-bar {{ 'bg-success' if c_pct >= 80 else ('bg-warning' if c_pct >= 30 else 'bg-danger') }}"
+                         style="width:{{ c_pct }}%;">
+                    </div>
+                </div>
             </div>
-            <span class="chevron">&#9660;</span>
+            <div class="text-end">
+                <span class="fw-bold" style="color: {{ '#198754' if c_pct >= 80 else ('#856404' if c_pct >= 30 else '#dc3545') }};">{{ c_pct }}%</span>
+                <span class="chevron">▶</span>
+            </div>
         </div>
-        <div class="group-body">
+        <div class="group-body" style="display:none;">
         {% set ns.group_open = true %}
     {% endif %}
 

@@ -188,6 +188,18 @@
 </div>
 
 {% if losses.stores %}
+{# Предрасчёт итогов стоимости по центрам #}
+{% set loss_ct = {} %}
+{% for s in losses.stores %}
+    {% set cname = s.get('center_name', '') or 'Без центра' %}
+    {% if cname not in loss_ct %}
+        {% if loss_ct.update({cname: {'expired':0,'d70':0,'d50':0,'total':0,'stores':0,'done_sum':0,'total_sum':0}}) %}{% endif %}
+    {% endif %}
+    {% set lc = loss_ct[cname] %}
+    {% set spct = completion_map.get(s.store_number, 0) %}
+    {% if lc.update({'expired': lc.expired+s.expired, 'd70': lc.d70+s.d70, 'd50': lc.d50+s.d50, 'total': lc.total+s.total, 'stores': lc.stores+1, 'done_sum': lc.done_sum+spct, 'total_sum': lc.total_sum+1}) %}{% endif %}
+{% endfor %}
+
 <div class="table-modern mb-4">
 <div class="table-responsive">
     <table class="table table-sm align-middle mb-0">
@@ -202,19 +214,27 @@
             </tr>
         </thead>
         <tbody>
-            {% set lns = namespace(current_center='') %}
+            {% set lns = namespace(current_center='', cid=0) %}
             {% for s in losses.stores | sort(attribute='center_name') %}
             {% set cname = s.get('center_name', '') or 'Без центра' %}
             {% if cname != lns.current_center %}
                 {% set lns.current_center = cname %}
-                <tr class="table-light">
-                    <td colspan="99" class="fw-bold small text-muted py-1" style="background: #f0f0f0;">
-                        📁 {{ cname }}
+                {% set lns.cid = lns.cid + 1 %}
+                {% set lc = loss_ct.get(cname, {}) %}
+                {% set lc_pct = (lc.get('done_sum',0) / lc.get('total_sum',1)) | int if lc.get('total_sum',0) > 0 else 0 %}
+                <tr class="loss-center-header" style="cursor:pointer; background: var(--kari-purple); color:#fff;"
+                    data-lcid="{{ lns.cid }}">
+                    <td colspan="99" style="padding: 8px 10px;">
+                        <span class="loss-center-arrow">▶</span>
+                        <b>{{ cname }}</b>
+                        <span style="opacity:0.85; margin-left:6px; font-size:0.75rem;">
+                            {{ '{:,.0f}'.format(lc.get('total',0)).replace(',', ' ') }} ₽ · {{ lc.get('stores',0) }} маг. · {{ lc_pct }}%
+                        </span>
                     </td>
                 </tr>
             {% endif %}
             {% set spct = completion_map.get(s.store_number, 0) %}
-            <tr>
+            <tr class="loss-center-row" data-lcid="{{ lns.cid }}" style="display:none;">
                 <td><a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a></td>
                 <td class="text-end text-danger">{{ '{:,.0f}'.format(s.expired).replace(',', ' ') }}</td>
                 <td class="text-end d-none d-sm-table-cell" style="color: #e65100;">{{ '{:,.0f}'.format(s.d70).replace(',', ' ') }}</td>
@@ -513,7 +533,22 @@ document.querySelectorAll('.center-header').forEach(function(tr) {
     tr.addEventListener('click', function() { toggleCenter(tr); });
 });
 
-// Центры свёрнуты по умолчанию (строки уже скрыты в HTML, стрелки ▶)
+// Центры потерь: по клику раскрываем/сворачиваем
+function toggleLossCenter(headerEl) {
+    var lcid = headerEl.getAttribute('data-lcid');
+    var rows = document.querySelectorAll('.loss-center-row[data-lcid="' + lcid + '"]');
+    var arrow = headerEl.querySelector('.loss-center-arrow');
+    var visible = rows.length > 0 && rows[0].style.display !== 'none';
+    for (var i = 0; i < rows.length; i++) {
+        rows[i].style.display = visible ? 'none' : '';
+    }
+    if (arrow) arrow.textContent = visible ? '▶' : '▼';
+}
+document.querySelectorAll('.loss-center-header').forEach(function(tr) {
+    tr.addEventListener('click', function() { toggleLossCenter(tr); });
+});
+
+// Все центры свёрнуты по умолчанию (строки скрыты в HTML, стрелки ▶)
 
 function fetchPrices() {
     var btn = document.getElementById('btn-fetch-prices');
