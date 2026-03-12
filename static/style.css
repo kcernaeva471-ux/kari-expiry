@@ -498,6 +498,58 @@ body {
     background: var(--kari-light) !important;
 }
 
+/* ── KPI-карточки (activity) ──────────────────────────────────────── */
+
+.kpi-card {
+    background: #fff;
+    border-radius: var(--radius);
+    text-align: center;
+    padding: 14px 6px 10px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(0,0,0,0.05);
+    position: relative;
+    overflow: hidden;
+}
+.kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--kari-gradient);
+}
+.kpi-value {
+    font-size: 1.4rem;
+    font-weight: 800;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+.kpi-value small {
+    font-size: 0.7em;
+    font-weight: 600;
+    opacity: 0.7;
+}
+.kpi-label {
+    font-size: 0.68rem;
+    color: #888;
+    font-weight: 600;
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.kpi-mini {
+    padding: 10px 6px 8px;
+}
+.kpi-mini .kpi-value {
+    font-size: 1.15rem;
+}
+@media (max-width: 576px) {
+    .kpi-value { font-size: 1.1rem; }
+    .kpi-mini .kpi-value { font-size: 0.95rem; }
+    .kpi-label { font-size: 0.6rem; }
+    .kpi-card { padding: 10px 4px 8px; }
+    .kpi-mini { padding: 8px 4px 6px; }
+}
+
 /* ── Кнопки ────────────────────────────────────────────────────────── */
 
 .btn-kari {

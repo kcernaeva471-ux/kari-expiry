@@ -20,42 +20,45 @@
     </div>
 </div>
 
-<!-- KPI-карточки (6 штук) -->
+<!-- KPI-карточки: верхний ряд (главные 3) -->
+<div class="row g-2 mb-2">
+    <div class="col-4">
+        <div class="kpi-card">
+            <div class="kpi-value" style="color: {{ 'var(--status-ok-text)' if global_totals.avg_completion >= 80 else ('var(--status-caution-text)' if global_totals.avg_completion >= 50 else 'var(--status-critical-text)') }};">{{ global_totals.avg_completion }}%</div>
+            <div class="kpi-label">Заполнено</div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="kpi-card">
+            <div class="kpi-value" style="color: var(--status-critical-text);">{{ global_totals.total_losses | money }}<small> ₽</small></div>
+            <div class="kpi-label">Потери</div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="kpi-card">
+            <div class="kpi-value" style="color: var(--status-info-text);">{{ global_totals.total_sold | money }}</div>
+            <div class="kpi-label">Продано 7д</div>
+        </div>
+    </div>
+</div>
+<!-- KPI: нижний ряд (активность) -->
 <div class="row g-2 mb-3">
-    <div class="col-4 col-sm">
-        <div class="summary-card" style="background: {{ 'var(--status-ok-bg)' if global_totals.avg_completion >= 80 else ('var(--status-caution-bg)' if global_totals.avg_completion >= 50 else 'var(--status-critical-bg)') }};">
-            <div class="count" style="font-size: 1.2rem; color: {{ 'var(--status-ok-text)' if global_totals.avg_completion >= 80 else ('var(--status-caution-text)' if global_totals.avg_completion >= 50 else 'var(--status-critical-text)') }};">{{ global_totals.avg_completion }}%</div>
-            <small>Заполнено</small>
+    <div class="col-4">
+        <div class="kpi-card kpi-mini">
+            <div class="kpi-value" style="color: var(--status-ok-text);">{{ global_totals.active_stores }}<small>/{{ global_totals.total_stores }}</small></div>
+            <div class="kpi-label">Заходили</div>
         </div>
     </div>
-    <div class="col-4 col-sm">
-        <div class="summary-card" style="background: var(--status-warning-bg);">
-            <div class="count" style="font-size: 1.2rem; color: var(--status-warning-text);">{{ global_totals.total_losses | money }} ₽</div>
-            <small>Потери</small>
+    <div class="col-4">
+        <div class="kpi-card kpi-mini">
+            <div class="kpi-value" style="color: var(--status-info-text);">{{ global_totals.entered_stores }}<small>/{{ global_totals.total_stores }}</small></div>
+            <div class="kpi-label">Вносили</div>
         </div>
     </div>
-    <div class="col-4 col-sm">
-        <div class="summary-card" style="background: var(--status-info-bg);">
-            <div class="count" style="font-size: 1.2rem; color: var(--status-info-text);">{{ global_totals.total_sold }}</div>
-            <small>Продано 7д</small>
-        </div>
-    </div>
-    <div class="col-4 col-sm">
-        <div class="summary-card" style="background: var(--status-ok-bg);">
-            <div class="count" style="font-size: 1.2rem; color: var(--status-ok-text);">{{ global_totals.active_stores }}</div>
-            <small>Заходили</small>
-        </div>
-    </div>
-    <div class="col-4 col-sm">
-        <div class="summary-card" style="background: var(--status-neutral-bg);">
-            <div class="count" style="font-size: 1.2rem; color: var(--status-neutral-text);">{{ global_totals.entered_stores }}</div>
-            <small>Вносили</small>
-        </div>
-    </div>
-    <div class="col-4 col-sm">
-        <div class="summary-card" style="background: var(--status-critical-bg);">
-            <div class="count" style="font-size: 1.2rem; color: var(--status-critical-text);">{{ global_totals.inactive_stores }}</div>
-            <small>Не заходили</small>
+    <div class="col-4">
+        <div class="kpi-card kpi-mini">
+            <div class="kpi-value" style="color: var(--status-critical-text);">{{ global_totals.inactive_stores }}</div>
+            <div class="kpi-label">Не заходили</div>
         </div>
     </div>
 </div>
