@@ -79,8 +79,9 @@
         </thead>
         <tbody>
             {% for center in center_data %}
+            {% set cid = loop.index %}
             {# Строка центра (кликабельная) #}
-            <tr class="unified-center-header" data-ucid="{{ loop.index }}" style="cursor: pointer;">
+            <tr class="unified-center-header" data-ucid="{{ cid }}" style="cursor: pointer;">
                 <td colspan="99" style="background: var(--kari-purple); color: #fff; padding: 8px 10px;">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
@@ -106,7 +107,7 @@
 
             {# Строки магазинов (скрыты по умолчанию) #}
             {% for s in center.stores %}
-            <tr class="unified-center-row" data-ucid="{{ loop.parent.loop.index }}" style="display: none;">
+            <tr class="unified-center-row" data-ucid="{{ cid }}" style="display: none;">
                 <td>
                     <a href="/store/{{ s.store_number }}" class="store-link">{{ s.store_number }}</a>
                     {% if not s.has_login %}
