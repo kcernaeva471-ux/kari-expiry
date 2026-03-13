@@ -910,6 +910,21 @@ def create_app() -> Flask:
         database.update_store_code(store_number, new_code)
         return jsonify({"ok": True})
 
+    @app.route("/api/store/change-password", methods=["POST"])
+    @login_required
+    def api_change_own_password():
+        """Смена пароля самим магазином / ДП."""
+        data = request.get_json() or {}
+        new_code = (data.get("new_code") or "").strip()
+        if not new_code or len(new_code) < 4:
+            return jsonify({"error": "Новый пароль должен быть не менее 4 символов"}), 400
+        store_number = session.get("store_number")
+        if not store_number:
+            return jsonify({"error": "Не определён пользователь"}), 400
+        database.update_store_code(store_number, new_code)
+        database.log_activity(store_number, "change_password", "Пароль изменён")
+        return jsonify({"ok": True})
+
     @app.route("/admin/setup-managers")
     @login_required
     @admin_required

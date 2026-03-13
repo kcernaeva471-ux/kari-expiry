@@ -259,6 +259,32 @@
 </div>
 {% endif %}
 
+<!-- Смена пароля -->
+<div class="card mb-3 mt-3" style="border-radius: var(--radius);">
+    <div class="card-body py-2 px-3">
+        <div class="d-flex align-items-center justify-content-between">
+            <b style="font-size: 0.85rem;">🔑 Сменить пароль</b>
+            <button class="btn btn-sm btn-outline-secondary" type="button"
+                    onclick="document.getElementById('change-pwd-form').style.display = document.getElementById('change-pwd-form').style.display === 'none' ? 'block' : 'none'">
+                Изменить
+            </button>
+        </div>
+        <div id="change-pwd-form" style="display: none;" class="mt-2">
+            <div class="d-flex gap-2 align-items-end">
+                <div class="flex-grow-1">
+                    <label class="form-label mb-0" style="font-size: 0.7rem;">Новый пароль</label>
+                    <input type="text" class="form-control form-control-sm" id="new-password"
+                           placeholder="Минимум 4 символа" inputmode="numeric" minlength="4">
+                </div>
+                <button class="btn btn-sm" style="background: var(--kari-purple); color: #fff;"
+                        onclick="changePassword()">
+                    Сохранить
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Подсказка -->
 <div class="text-center text-muted small mt-3 mb-3">
     Нажмите на товар, чтобы добавить дату производства
@@ -379,6 +405,18 @@ function setTester(productId, value) {
     if (!confirm(msg)) return;
     var btn = event ? event.target : null;
     apiFetch('/api/product/tester', { product_id: productId, value: value }, btn);
+}
+
+// Смена пароля
+function changePassword() {
+    var pwd = document.getElementById('new-password').value.trim();
+    if (!pwd || pwd.length < 4) {
+        alert('Пароль должен быть не менее 4 символов');
+        return;
+    }
+    if (!confirm('Сменить пароль на «' + pwd + '»?')) return;
+    var btn = event ? event.target : null;
+    apiFetch('/api/store/change-password', { new_code: pwd }, btn);
 }
 
 // Загрузка фото акционной зоны
