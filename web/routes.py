@@ -203,8 +203,16 @@ def create_app() -> Flask:
             return redirect(url_for("dashboard"))
 
         filter_status = request.args.get("filter")
+        group_filter = request.args.get("group")
         stats = database.get_store_stats(store_number)
         products = database.get_store_products(store_number, filter_status)
+
+        # Фильтр по группе товаров
+        product_groups = sorted(set(p.get("product_group", "") for p in products if p.get("product_group")))
+        if group_filter == "__no_expiry__":
+            products = [p for p in products if p.get("no_expiry")]
+        elif group_filter:
+            products = [p for p in products if p.get("product_group") == group_filter]
 
         today_photos = database.get_today_promotion_photos(store_number)
 
@@ -214,9 +222,62 @@ def create_app() -> Flask:
             stats=stats,
             products=products,
             current_filter=filter_status,
+            group_filter=group_filter,
+            product_groups=product_groups,
             styles=config.CATEGORY_STYLES,
             today_photos=today_photos,
         )
+
+    @app.route("/profile")
+    @login_required
+    def profile():
+        store_number = session.get("store_number")
+        role = session.get("role")
+        center_id = session.get("center_id")
+        center_name = ""
+        manager_name = ""
+        manager_phone = ""
+        if center_id:
+            db = database.get_db()
+            c = db.execute("SELECT name FROM centers WHERE id = ?", (center_id,)).fetchone()
+            center_name = c["name"] if c else ""
+            mgr = db.execute(
+                "SELECT store_number, access_code FROM store_access WHERE center_id = ? AND role = 'center_manager'",
+                (center_id,)
+            ).fetchone()
+            if mgr:
+                manager_phone = mgr["store_number"]
+                # Ищем имя ДП в таблице
+                names_row = db.execute(
+                    "SELECT manager_name FROM store_access WHERE store_number = ? AND role = 'center_manager'",
+                    (manager_phone,)
+                ).fetchone()
+                manager_name = names_row["manager_name"] if names_row and "manager_name" in names_row.keys() else ""
+        elif role not in ("admin",):
+            cid = database.get_center_for_store(store_number)
+            if cid:
+                center_id = cid
+                db = database.get_db()
+                c = db.execute("SELECT name FROM centers WHERE id = ?", (cid,)).fetchone()
+                center_name = c["name"] if c else ""
+                mgr = db.execute(
+                    "SELECT store_number FROM store_access WHERE center_id = ? AND role = 'center_manager'",
+                    (cid,)
+                ).fetchone()
+                if mgr:
+                    manager_phone = mgr["store_number"]
+                    names_row = db.execute(
+                        "SELECT manager_name FROM store_access WHERE store_number = ? AND role = 'center_manager'",
+                        (manager_phone,)
+                    ).fetchone()
+                    manager_name = names_row["manager_name"] if names_row and "manager_name" in names_row.keys() else ""
+
+        return render_template("profile.html",
+                               store_number=store_number,
+                               role=role,
+                               center_name=center_name,
+                               manager_name=manager_name,
+                               manager_phone=manager_phone)
 
     # ── API: Добавить партию ──────────────────────────────────────────────
 
@@ -264,6 +325,30 @@ def create_app() -> Flask:
         database.log_activity(store, "add_batch",
                               f"Товар #{product_id}: {production_date}, {shelf_life_months} мес., {quantity} шт.")
         return jsonify({"ok": True, "batch_id": batch_id})
+
+    @app.route("/api/batch/edit", methods=["POST"])
+    @login_required
+    def api_edit_batch():
+        data = request.get_json() or {}
+        batch_id = data.get("batch_id")
+        production_date = (data.get("production_date") or "").strip()
+        shelf_life_months = data.get("shelf_life_months")
+        quantity = data.get("quantity")
+
+        if not batch_id:
+            return jsonify({"error": "Не указана партия"}), 400
+        try:
+            batch_id = int(batch_id)
+            shelf_life_months = int(shelf_life_months) if shelf_life_months else None
+            quantity = int(quantity) if quantity else None
+        except (ValueError, TypeError):
+            return jsonify({"error": "Неверные данные"}), 400
+
+        database.edit_batch(batch_id, production_date, shelf_life_months, quantity)
+        store = session.get("store_number", "?")
+        database.log_activity(store, "edit_batch",
+                              f"Партия #{batch_id}: {production_date}, {shelf_life_months} мес., {quantity} шт.")
+        return jsonify({"ok": True})
 
     @app.route("/api/batch/delete", methods=["POST"])
     @login_required

@@ -51,9 +51,9 @@
 </div>
 
 <!-- Фильтры -->
-<div class="d-flex flex-wrap gap-1 mb-3">
+<div class="d-flex flex-wrap gap-1 mb-2">
     <a href="/store/{{ store_number }}"
-       class="filter-chip {{ 'bg-dark text-white border-dark' if not current_filter else 'text-dark border-secondary' }}">
+       class="filter-chip {{ 'bg-dark text-white border-dark' if not current_filter and not group_filter else 'text-dark border-secondary' }}">
         Все
     </a>
     <a href="/store/{{ store_number }}?filter=Не заполнен"
@@ -64,7 +64,25 @@
        class="filter-chip {{ 'bg-danger text-white border-danger' if current_filter == 'urgent' else 'text-danger border-danger' }}">
         Срочные
     </a>
+    <a href="/store/{{ store_number }}?group=__no_expiry__"
+       class="filter-chip {{ 'bg-info text-white border-info' if group_filter == '__no_expiry__' else 'text-info border-info' }}">
+        Без срока
+    </a>
 </div>
+
+<!-- Фильтр по группе товаров -->
+{% if product_groups %}
+<div class="mb-3">
+    <select class="form-select form-select-sm" id="group-filter"
+            onchange="var v=this.value; if(v) location.href='/store/{{ store_number }}?group='+encodeURIComponent(v); else location.href='/store/{{ store_number }}';"
+            style="font-size: 0.8rem; max-width: 280px;">
+        <option value="">Все группы товаров</option>
+        {% for g in product_groups %}
+        <option value="{{ g }}" {{ 'selected' if group_filter == g else '' }}>{{ g }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endif %}
 
 <!-- Фото акционной зоны -->
 {% set has_discounts = stats.get('ПРОСРОЧЕН', 0) > 0 or stats.get('Скидка 70%', 0) > 0 or stats.get('Скидка 50%', 0) > 0 %}
@@ -182,21 +200,51 @@
                 <div class="mb-2">
                     <small class="text-muted fw-bold">Партии:</small>
                     {% for b in p.batches %}
-                    <div class="d-flex align-items-center gap-2 py-1 border-bottom"
+                    <div class="py-1 border-bottom"
                          style="background: {{ styles.get(b.status, {}).get('bg', '#fff') }}; padding: 4px 6px; border-radius: 4px; margin-top: 2px;">
-                        <span class="small flex-grow-1">
-                            {% if b.quantity > 0 %}<b>{{ b.quantity }} шт</b> &middot; {% endif %}
-                            Произв: <b>{{ b.prod_formatted }}</b>
-                            &rarr; До: <b>{{ b.expiry_formatted }}</b>
-                            ({{ b.days_left }} дн.)
-                            {% if b.status == 'ПРОСРОЧЕН' %}
-                                <span class="text-danger fw-bold">ПРОСРОЧЕН</span>
-                            {% endif %}
-                        </span>
-                        <button class="btn btn-sm btn-outline-danger py-0 px-1"
-                                onclick="deleteBatch({{ b.id }}, {{ p.id }})" title="Удалить">
-                            &times;
-                        </button>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="small flex-grow-1">
+                                {% if b.quantity > 0 %}<b>{{ b.quantity }} шт</b> &middot; {% endif %}
+                                Произв: <b>{{ b.prod_formatted }}</b>
+                                &rarr; До: <b>{{ b.expiry_formatted }}</b>
+                                ({{ b.days_left }} дн.)
+                                {% if b.status == 'ПРОСРОЧЕН' %}
+                                    <span class="text-danger fw-bold">ПРОСРОЧЕН</span>
+                                {% endif %}
+                            </span>
+                            <button class="btn btn-sm btn-outline-secondary py-0 px-1"
+                                    onclick="toggleEditBatch({{ b.id }})" title="Редактировать">
+                                ✏️
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger py-0 px-1"
+                                    onclick="deleteBatch({{ b.id }}, {{ p.id }})" title="Удалить">
+                                &times;
+                            </button>
+                        </div>
+                        <!-- Форма редактирования партии -->
+                        <div id="edit-batch-{{ b.id }}" style="display:none;" class="mt-1 p-1 bg-light rounded">
+                            <div class="row g-1 align-items-end">
+                                <div class="col-4">
+                                    <label class="form-label mb-0" style="font-size:0.65rem;">Дата произв.</label>
+                                    <input type="date" class="form-control form-control-sm"
+                                           id="edit-date-{{ b.id }}" value="{{ b.production_date }}">
+                                </div>
+                                <div class="col-3">
+                                    <label class="form-label mb-0" style="font-size:0.65rem;">Срок (мес.)</label>
+                                    <input type="number" class="form-control form-control-sm"
+                                           id="edit-months-{{ b.id }}" value="{{ b.shelf_life_months }}" min="1" max="120">
+                                </div>
+                                <div class="col-2">
+                                    <label class="form-label mb-0" style="font-size:0.65rem;">Кол-во</label>
+                                    <input type="number" class="form-control form-control-sm"
+                                           id="edit-qty-{{ b.id }}" value="{{ b.quantity or 0 }}" min="0">
+                                </div>
+                                <div class="col-3">
+                                    <button class="btn btn-sm btn-primary w-100"
+                                            onclick="saveBatch({{ b.id }})">Сохранить</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
@@ -259,32 +307,6 @@
 </div>
 {% endif %}
 
-<!-- Смена пароля -->
-<div class="card mb-3 mt-3" style="border-radius: var(--radius);">
-    <div class="card-body py-2 px-3">
-        <div class="d-flex align-items-center justify-content-between">
-            <b style="font-size: 0.85rem;">🔑 Сменить пароль</b>
-            <button class="btn btn-sm btn-outline-secondary" type="button"
-                    onclick="document.getElementById('change-pwd-form').style.display = document.getElementById('change-pwd-form').style.display === 'none' ? 'block' : 'none'">
-                Изменить
-            </button>
-        </div>
-        <div id="change-pwd-form" style="display: none;" class="mt-2">
-            <div class="d-flex gap-2 align-items-end">
-                <div class="flex-grow-1">
-                    <label class="form-label mb-0" style="font-size: 0.7rem;">Новый пароль</label>
-                    <input type="text" class="form-control form-control-sm" id="new-password"
-                           placeholder="Минимум 4 символа" inputmode="numeric" minlength="4">
-                </div>
-                <button class="btn btn-sm" style="background: var(--kari-purple); color: #fff;"
-                        onclick="changePassword()">
-                    Сохранить
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Подсказка -->
 <div class="text-center text-muted small mt-3 mb-3">
     Нажмите на товар, чтобы добавить дату производства
@@ -346,7 +368,8 @@ function apiFetch(url, body, btn) {
             alert(data.error);
             if (btn) { btn.disabled = false; btn.textContent = origText; }
         } else {
-            location.reload();
+            // Сохраняем текущий URL с фильтрами
+            location.href = location.href;
         }
     })
     .catch(function(e) {
@@ -407,16 +430,27 @@ function setTester(productId, value) {
     apiFetch('/api/product/tester', { product_id: productId, value: value }, btn);
 }
 
-// Смена пароля
-function changePassword() {
-    var pwd = document.getElementById('new-password').value.trim();
-    if (!pwd || pwd.length < 4) {
-        alert('Пароль должен быть не менее 4 символов');
-        return;
-    }
-    if (!confirm('Сменить пароль на «' + pwd + '»?')) return;
+// Редактирование партии
+function toggleEditBatch(batchId) {
+    var el = document.getElementById('edit-batch-' + batchId);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function saveBatch(batchId) {
+    var dateEl = document.getElementById('edit-date-' + batchId);
+    var monthsEl = document.getElementById('edit-months-' + batchId);
+    var qtyEl = document.getElementById('edit-qty-' + batchId);
     var btn = event ? event.target : null;
-    apiFetch('/api/store/change-password', { new_code: pwd }, btn);
+
+    if (!dateEl.value) { alert('Укажите дату производства'); return; }
+    if (!monthsEl.value || monthsEl.value < 1) { alert('Укажите срок годности'); return; }
+
+    apiFetch('/api/batch/edit', {
+        batch_id: batchId,
+        production_date: dateEl.value,
+        shelf_life_months: parseInt(monthsEl.value),
+        quantity: parseInt(qtyEl.value) || 0
+    }, btn);
 }
 
 // Загрузка фото акционной зоны

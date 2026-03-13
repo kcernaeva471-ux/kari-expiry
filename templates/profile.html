@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Профиль — Kari{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <h5>Профиль</h5>
+</div>
+
+<div class="card mb-3" style="border-radius: var(--radius);">
+    <div class="card-body">
+        <div class="mb-3">
+            <div class="text-muted small">Номер магазина</div>
+            <div class="fw-bold fs-5">{{ store_number }}</div>
+        </div>
+        {% if center_name %}
+        <div class="mb-3">
+            <div class="text-muted small">Центр</div>
+            <div class="fw-bold">{{ center_name }}</div>
+        </div>
+        {% endif %}
+        {% if manager_name %}
+        <div class="mb-3">
+            <div class="text-muted small">Директор подразделения</div>
+            <div class="fw-bold">{{ manager_name }}</div>
+        </div>
+        {% endif %}
+        {% if manager_phone %}
+        <div class="mb-3">
+            <div class="text-muted small">Телефон ДП</div>
+            <div class="fw-bold">{{ manager_phone }}</div>
+        </div>
+        {% endif %}
+        <div class="mb-2">
+            <div class="text-muted small">Роль</div>
+            <div class="fw-bold">
+                {% if role == 'admin' %}Администратор
+                {% elif role == 'center_manager' %}Директор подразделения
+                {% elif role == 'director' %}Директор магазина
+                {% else %}{{ role }}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Смена пароля -->
+<div class="card mb-3" style="border-radius: var(--radius);">
+    <div class="card-body">
+        <b style="font-size: 0.9rem;">🔑 Сменить пароль</b>
+        <div class="mt-2">
+            <div class="d-flex gap-2 align-items-end">
+                <div class="flex-grow-1">
+                    <label class="form-label mb-0 small text-muted">Новый пароль</label>
+                    <input type="text" class="form-control form-control-sm" id="new-password"
+                           placeholder="Минимум 4 символа" inputmode="numeric" minlength="4">
+                </div>
+                <button class="btn btn-sm" style="background: var(--kari-purple); color: #fff;"
+                        onclick="changePassword()">
+                    Сохранить
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Инструкция -->
+<div class="card mb-3" style="border-radius: var(--radius);">
+    <div class="card-body">
+        <b style="font-size: 0.9rem;">📖 Инструкция</b>
+        <div class="mt-2 small">
+            <p><b>1.</b> Откройте свой магазин — вы увидите список всех товаров с остатками</p>
+            <p><b>2.</b> Нажмите на товар — откроется форма для добавления партии</p>
+            <p><b>3.</b> Укажите <b>дату производства</b> и <b>срок годности в месяцах</b> — система сама рассчитает дату окончания</p>
+            <p><b>4.</b> Если товар не имеет срока годности — нажмите «Нет срока годности»</p>
+            <p class="mb-1"><b>5.</b> Загрузите фото акционной зоны (кнопка 📸)</p>
+            <hr>
+            <p class="mb-1"><b>Статусы товаров:</b></p>
+            <p class="mb-0">🔴 <b>Просрочен</b> — срок истёк, снять с продажи</p>
+            <p class="mb-0">🟠 <b>Скидка 70%</b> — до конца срока менее 90 дней</p>
+            <p class="mb-0">🟡 <b>Скидка 50%</b> — до конца срока 91–180 дней</p>
+            <p class="mb-0">🟢 <b>В норме</b> — более 180 дней</p>
+        </div>
+    </div>
+</div>
+
+<script>
+function changePassword() {
+    var pwd = document.getElementById('new-password').value.trim();
+    if (!pwd || pwd.length < 4) {
+        alert('Пароль должен быть не менее 4 символов');
+        return;
+    }
+    if (!confirm('Сменить пароль на «' + pwd + '»?')) return;
+
+    fetch('/api/store/change-password', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ new_code: pwd }),
+        credentials: 'same-origin'
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            alert('Пароль успешно изменён!');
+            document.getElementById('new-password').value = '';
+        }
+    })
+    .catch(function() { alert('Ошибка соединения'); });
+}
+</script>
+
+{% endblock %}

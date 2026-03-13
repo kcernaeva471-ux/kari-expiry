@@ -435,6 +435,30 @@ def add_batch(product_id: int, production_date: str, shelf_life_months: int,
     return cursor.lastrowid
 
 
+def edit_batch(batch_id: int, production_date: str = None,
+               shelf_life_months: int = None, quantity: int = None):
+    """Редактирует существующую партию."""
+    db = get_db()
+    batch = db.execute("SELECT * FROM batches WHERE id = ?", (batch_id,)).fetchone()
+    if not batch:
+        return
+
+    prod_date_str = production_date or batch["production_date"]
+    months = shelf_life_months if shelf_life_months is not None else batch["shelf_life_months"]
+    qty = quantity if quantity is not None else batch["quantity"]
+
+    from datetime import datetime
+    prod_date = datetime.strptime(prod_date_str, "%Y-%m-%d").date()
+    expiry = prod_date + relativedelta(months=months)
+
+    db.execute(
+        """UPDATE batches SET production_date = ?, shelf_life_months = ?,
+           expiry_date = ?, quantity = ? WHERE id = ?""",
+        (prod_date_str, months, expiry.isoformat(), qty, batch_id),
+    )
+    db.commit()
+
+
 def delete_batch(batch_id: int):
     db = get_db()
     db.execute("DELETE FROM batches WHERE id = ?", (batch_id,))

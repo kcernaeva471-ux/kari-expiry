@@ -95,9 +95,13 @@
                 <span>Контроль</span>
             </a>
         {% else %}
-            <a href="/store/{{ session.get('store_number') }}" class="bottom-nav-item active">
+            <a href="/store/{{ session.get('store_number') }}" class="bottom-nav-item {% if '/store/' in request.path %}active{% endif %}">
                 <svg viewBox="0 0 24 24"><path d="M4 8l1.5-4h13L20 8H4zm0 1v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9H4zm5 3a3 3 0 0 0 6 0" fill="currentColor"/></svg>
                 <span>Магазин</span>
+            </a>
+            <a href="/profile" class="bottom-nav-item {% if '/profile' in request.path %}active{% endif %}">
+                <svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-5.5 0-10 2.5-10 5v2h20v-2c0-2.5-4.5-5-10-5z" fill="currentColor"/></svg>
+                <span>Профиль</span>
             </a>
             <a href="/logout" class="bottom-nav-item">
                 <svg viewBox="0 0 24 24"><path d="M5 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4a1 1 0 1 0 0-2H5V5h4a1 1 0 1 0 0-2H5zm11.3 4.3a1 1 0 0 1 1.4 0l4 4a1 1 0 0 1 0 1.4l-4 4a1 1 0 0 1-1.4-1.4L18.6 13H10a1 1 0 1 1 0-2h8.6l-2.3-2.3a1 1 0 0 1 0-1.4z" fill="currentColor"/></svg>
