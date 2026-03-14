@@ -204,6 +204,7 @@ def create_app() -> Flask:
 
         filter_status = request.args.get("filter")
         group_filter = request.args.get("group")
+        search_query = request.args.get("search", "").strip()
         stats = database.get_store_stats(store_number)
         products = database.get_store_products(store_number, filter_status)
 
@@ -223,6 +224,7 @@ def create_app() -> Flask:
             products=products,
             current_filter=filter_status,
             group_filter=group_filter,
+            search_query=search_query,
             product_groups=product_groups,
             styles=config.CATEGORY_STYLES,
             today_photos=today_photos,

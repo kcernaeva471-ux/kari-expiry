@@ -156,6 +156,9 @@ def init_db():
 
     db.commit()
 
+    # Классификация товаров по группам (при каждом старте)
+    update_all_product_groups()
+
 
 def setup_store_access():
     """Инициализирует магазины и центр по умолчанию (Центр 5)."""
@@ -193,6 +196,102 @@ def setup_store_access():
     db.commit()
 
 
+# ── Классификация товаров по группам ──────────────────────────────────────
+
+# Правила: (название_группы, [префиксы_артикулов], [ключевые_слова_в_названии])
+# Порядок важен — первое совпадение побеждает
+PRODUCT_GROUP_RULES = [
+    # 1–18: явно заданные группы
+    ("Мыло",                  ["c34"],                                     ["мыло"]),
+    ("Гели для душа",         ["c16"],                                     ["гель для душа"]),
+    ("Скраб для тела",        ["b99"],                                     ["скраб для тела", "скраб"]),
+    ("Маска",                 ["b78", "c72", "100"],                       ["маска"]),
+    ("Бальзамы для губ",      ["b77"],                                     ["бальзам для губ"]),
+    ("Крем для рук",          ["b79"],                                     ["крем для рук"]),
+    ("Сладости",              ["775", "u51", "788"],                       []),
+    ("Аксессуары",            ["b010", "c61", "b58", "c62", "c73",
+                               "b96", "c24", "245", "248", "493"],         []),
+    ("Саше и диффузоры",      ["b38", "b46"],                              ["саше", "диффузор"]),
+    ("Женские духи",          ["b800"],                                    ["женская туалетная вода", "женские духи"]),
+    ("Соль для ванны",        ["c33"],                                     ["соль для ванны"]),
+    ("Кондиционер для волос", ["c71"],                                     ["кондиционер для волос"]),
+    ("Шампунь для волос",     ["c70"],                                     ["шампунь"]),
+    ("Блеск для губ",         ["b70"],                                     ["блеск для губ"]),
+    ("Уход за лицом",         ["c17", "e37", "c10"],                       ["крем для лица", "гель для умывания"]),
+    ("Лосьон для тела",       ["c13", "c23"],                              ["лосьон для тела"]),
+    ("Зубные пасты",          ["c74"],                                     ["зубная паста"]),
+    ("Средства для бровей",   ["b69"],                                     ["для бровей"]),
+    # Дополнительные группы (остальные товары)
+    ("Макияж для лица",       ["b60", "b61", "b62", "b63", "b64"],         ["тональный крем", "bb крем", "cc крем",
+                                                                            "пудра", "румяна", "хайлайтер",
+                                                                            "база под макияж", "основа под макияж"]),
+    ("Тушь для ресниц",       ["b65"],                                     ["тушь для ресниц", "тушь"]),
+    ("Тени для век",          ["b67"],                                     ["тени для век"]),
+    ("Подводка для глаз",     ["b68"],                                     ["подводка для глаз", "подводка"]),
+    ("Помада для губ",        ["b76"],                                     ["помада для губ", "помада"]),
+    ("Мужские духи",          ["b810"],                                    ["мужская туалетная вода", "мужские духи"]),
+    ("Лак для ногтей",        ["b95"],                                     ["лак для ногтей"]),
+    ("Бомбочки для ванны",    ["b97"],                                     ["бомбочка для ванны", "набор бомбочек"]),
+    ("Бытовая химия",         ["c63", "c64", "c78", "c79", "c80", "c81"], ["средство для мытья", "стирк",
+                                                                            "посудомоечн", "пятновыводител",
+                                                                            "кондиционер для белья"]),
+    ("Косметические наборы",  ["e38"],                                     ["косметический набор"]),
+]
+
+# Сортируем префиксы по длине (длинные первыми) для точного совпадения
+_SORTED_RULES = []
+for group_name, prefixes, keywords in PRODUCT_GROUP_RULES:
+    sorted_pfx = sorted(prefixes, key=len, reverse=True)
+    _SORTED_RULES.append((group_name, sorted_pfx, [kw.lower() for kw in keywords]))
+
+
+def classify_product_group(article: str, name: str) -> str:
+    """Определяет группу товара по артикулу и названию.
+    Приоритет: сначала ВСЕ префиксы артикулов, потом ключевые слова.
+    """
+    art_lower = article.lower().strip()
+    name_lower = name.lower().strip()
+
+    # 1. Проверяем все префиксы (приоритет — длинные первыми)
+    best_match = ""
+    best_pfx_len = 0
+    for group_name, prefixes, _keywords in _SORTED_RULES:
+        for pfx in prefixes:
+            pfx_low = pfx.lower()
+            if art_lower.startswith(pfx_low) and len(pfx_low) > best_pfx_len:
+                best_match = group_name
+                best_pfx_len = len(pfx_low)
+    if best_match:
+        return best_match
+
+    # 2. Проверяем ключевые слова в названии
+    for group_name, _prefixes, keywords in _SORTED_RULES:
+        for kw in keywords:
+            if kw in name_lower:
+                return group_name
+
+    return ""  # Не удалось классифицировать
+
+
+def update_all_product_groups():
+    """Обновляет product_group для всех товаров в базе по правилам классификации."""
+    db = get_db()
+    rows = db.execute("SELECT id, article, name FROM store_products").fetchall()
+
+    updated = 0
+    for row in rows:
+        new_group = classify_product_group(row["article"], row["name"])
+        if new_group:
+            db.execute(
+                "UPDATE store_products SET product_group = ? WHERE id = ?",
+                (new_group, row["id"]),
+            )
+            updated += 1
+
+    db.commit()
+    return updated
+
+
 # ── Импорт данных ─────────────────────────────────────────────────────────
 
 def import_stock(stock_rows: list, catalog: dict, filename: str = "",
@@ -227,6 +326,10 @@ def import_stock(stock_rows: list, catalog: dict, filename: str = "",
         name = cat_info.get("name", row.get("name", ""))
         brand = cat_info.get("brand", "")
         group = cat_info.get("group", "") or row.get("group", "")
+        # Классификация по правилам (приоритет над каталогом)
+        classified = classify_product_group(article, name)
+        if classified:
+            group = classified
         no_expiry = is_no_expiry_product(name, group)
 
         key = (store, article)

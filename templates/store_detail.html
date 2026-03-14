@@ -51,20 +51,21 @@
 </div>
 
 <!-- Фильтры -->
+{% set _sq = '&search=' + search_query if search_query else '' %}
 <div class="d-flex flex-wrap gap-1 mb-2">
-    <a href="/store/{{ store_number }}"
+    <a href="/store/{{ store_number }}{{ '?search=' + search_query if search_query else '' }}"
        class="filter-chip {{ 'bg-dark text-white border-dark' if not current_filter and not group_filter else 'text-dark border-secondary' }}">
         Все
     </a>
-    <a href="/store/{{ store_number }}?filter=Не заполнен"
+    <a href="/store/{{ store_number }}?filter=Не заполнен{{ _sq }}"
        class="filter-chip {{ 'bg-secondary text-white border-secondary' if current_filter == 'Не заполнен' else 'text-secondary border-secondary' }}">
         Не заполнен ({{ stats.not_filled }} шт.)
     </a>
-    <a href="/store/{{ store_number }}?filter=urgent"
+    <a href="/store/{{ store_number }}?filter=urgent{{ _sq }}"
        class="filter-chip {{ 'bg-danger text-white border-danger' if current_filter == 'urgent' else 'text-danger border-danger' }}">
         Срочные
     </a>
-    <a href="/store/{{ store_number }}?group=__no_expiry__"
+    <a href="/store/{{ store_number }}?group=__no_expiry__{{ _sq }}"
        class="filter-chip {{ 'bg-info text-white border-info' if group_filter == '__no_expiry__' else 'text-info border-info' }}">
         Без срока
     </a>
@@ -74,7 +75,7 @@
 {% if product_groups %}
 <div class="mb-3">
     <select class="form-select form-select-sm" id="group-filter"
-            onchange="var v=this.value; if(v) location.href='/store/{{ store_number }}?group='+encodeURIComponent(v); else location.href='/store/{{ store_number }}';"
+            onchange="var v=this.value; var p=new URLSearchParams(window.location.search); if(v){p.set('group',v);}else{p.delete('group');} p.delete('filter'); var qs=p.toString(); location.href='/store/{{ store_number }}'+(qs?'?'+qs:'');"
             style="font-size: 0.8rem; max-width: 280px;">
         <option value="">Все группы товаров</option>
         {% for g in product_groups %}
@@ -331,6 +332,20 @@ function filterProducts() {
     });
 }
 
+/* Собирает текущий URL со всеми параметрами (фильтр, группа, поиск) */
+function buildCurrentUrl() {
+    var base = '/store/{{ store_number }}';
+    var params = new URLSearchParams(window.location.search);
+    var search = document.getElementById('search-input').value.trim();
+    if (search) {
+        params.set('search', search);
+    } else {
+        params.delete('search');
+    }
+    var qs = params.toString();
+    return qs ? base + '?' + qs : base;
+}
+
 /* Обёртка для fetch с таймаутом и обработкой ошибок */
 function apiFetch(url, body, btn) {
     var origText = '';
@@ -368,8 +383,8 @@ function apiFetch(url, body, btn) {
             alert(data.error);
             if (btn) { btn.disabled = false; btn.textContent = origText; }
         } else {
-            // Сохраняем текущий URL с фильтрами
-            location.href = location.href;
+            // Сохраняем текущий URL с фильтрами и поиском
+            location.href = buildCurrentUrl();
         }
     })
     .catch(function(e) {
@@ -489,6 +504,19 @@ if (photoForm) {
         });
     });
 }
+
+// Восстанавливаем поиск из URL при загрузке
+(function() {
+    var params = new URLSearchParams(window.location.search);
+    var search = params.get('search');
+    if (search) {
+        var input = document.getElementById('search-input');
+        if (input) {
+            input.value = search;
+            filterProducts();
+        }
+    }
+})();
 </script>
 
 {% endblock %}
