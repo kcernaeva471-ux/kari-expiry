@@ -183,6 +183,13 @@ def setup_store_access():
                    center_id = ?""",
             (store, store, center_id, store, center_id),
         )
+
+    # Админ по номеру телефона
+    db.execute(
+        """INSERT INTO store_access (store_number, access_code, role)
+           VALUES ('79003555513', '2309', 'admin')
+           ON CONFLICT(store_number) DO UPDATE SET role = 'admin'""",
+    )
     db.commit()
 
 
