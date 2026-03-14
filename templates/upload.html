@@ -2,6 +2,7 @@
 {% block title %}Импорт данных — Kari{% endblock %}
 {% block content %}
 
+{% if session.get('role') == 'admin' %}
 <p class="section-label">ИМПОРТ ДАННЫХ</p>
 
 <div class="card shadow-sm" style="border-radius: var(--radius);">
@@ -43,6 +44,7 @@
         </form>
     </div>
 </div>
+{% endif %}
 
 {% if last_snapshot %}
 <p class="section-label mt-3">ПОСЛЕДНИЙ ИМПОРТ</p>
@@ -60,7 +62,7 @@
             <span class="text-success">(доп. импорт)</span>
             {% endif %}
         </div>
-        {% if last_snapshot.products_zeroed > 0 or last_snapshot.products_added > 0 or last_snapshot.products_updated > 0 %}
+        {% if session.get('role') == 'admin' and (last_snapshot.products_zeroed > 0 or last_snapshot.products_added > 0 or last_snapshot.products_updated > 0) %}
         <button class="btn btn-sm btn-outline-danger" onclick="undoImport({{ last_snapshot.id }})">
             Отменить этот импорт
         </button>

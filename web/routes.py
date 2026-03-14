@@ -641,8 +641,14 @@ def create_app() -> Flask:
 
     @app.route("/upload", methods=["GET", "POST"])
     @login_required
-    @admin_required
     def upload():
+        role = session.get("role")
+        if role not in ("admin", "sales_director"):
+            flash("Доступ только для администратора", "danger")
+            return redirect(url_for("dashboard"))
+        if request.method == "POST" and role != "admin":
+            flash("Загрузка доступна только администратору", "danger")
+            return redirect(url_for("upload"))
         if request.method == "POST":
             stock_file = request.files.get("stock_file")
             catalog_file = request.files.get("catalog_file")

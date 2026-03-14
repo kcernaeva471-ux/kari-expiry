@@ -31,6 +31,7 @@
                     <a href="/" class="nav-link-kari {% if request.path == '/' %}active{% endif %}">Главная</a>
                     <a href="/activity" class="nav-link-kari {% if '/activity' in request.path %}active{% endif %}">Контроль</a>
                     <a href="/centers" class="nav-link-kari {% if '/centers' in request.path %}active{% endif %}">Центры</a>
+                    <a href="/upload" class="nav-link-kari {% if '/upload' in request.path %}active{% endif %}">Импорт</a>
                 {% elif session.get('role') == 'center_manager' %}
                     <a href="/" class="nav-link-kari {% if request.path == '/' %}active{% endif %}">Главная</a>
                     <a href="/activity" class="nav-link-kari {% if '/activity' in request.path %}active{% endif %}">Контроль</a>
@@ -101,6 +102,10 @@
             <a href="/centers" class="bottom-nav-item {% if '/centers' in request.path %}active{% endif %}">
                 <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7zm6-2V3.5A1.5 1.5 0 0 1 10.5 2h3A1.5 1.5 0 0 1 15 3.5V5" fill="currentColor" stroke="currentColor" stroke-width="0.5"/></svg>
                 <span>Центры</span>
+            </a>
+            <a href="/upload" class="bottom-nav-item {% if '/upload' in request.path %}active{% endif %}">
+                <svg viewBox="0 0 24 24"><path d="M5 19a2 2 0 0 1-2-2v-2a1 1 0 1 1 2 0v2h14v-2a1 1 0 1 1 2 0v2a2 2 0 0 1-2 2H5z" fill="currentColor"/><path d="M12 4l-5 5h3v5h4V9h3l-5-5z" fill="currentColor"/></svg>
+                <span>Импорт</span>
             </a>
         {% elif session.get('role') == 'center_manager' %}
             <a href="/" class="bottom-nav-item {% if request.path == '/' %}active{% endif %}">
