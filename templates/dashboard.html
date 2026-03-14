@@ -7,6 +7,7 @@
     <div>
         <div class="role-label">
             {% if session.get('role') == 'admin' %}Администратор
+            {% elif session.get('role') == 'sales_director' %}Директор по продажам
             {% elif session.get('role') == 'center_manager' %}Директор подразделения
             {% else %}Магазин {{ session.get('store_number') }}{% endif %}
         </div>
@@ -14,7 +15,7 @@
     </div>
     <div class="d-flex align-items-center gap-2">
         <span class="role-badge">
-            {% if session.get('role') == 'admin' %}Админ{% elif session.get('role') == 'center_manager' %}ДП{% else %}{{ session.get('store_number') }}{% endif %}
+            {% if session.get('role') == 'admin' %}Админ{% elif session.get('role') == 'sales_director' %}Дир. продаж{% elif session.get('role') == 'center_manager' %}ДП{% else %}{{ session.get('store_number') }}{% endif %}
         </span>
         <a href="/logout" class="btn-logout-sm d-md-none">Выход</a>
     </div>

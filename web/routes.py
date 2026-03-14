@@ -154,7 +154,7 @@ def create_app() -> Flask:
                 if result["role"] != "admin" and code == store:
                     flash("Смените стандартный код доступа!", "warning")
                 database.log_activity(result["store_number"], "login", f"Вход в систему")
-                if result["role"] in ("admin", "center_manager"):
+                if result["role"] in ("admin", "center_manager", "sales_director"):
                     return redirect(url_for("dashboard"))
                 return redirect(url_for("store_detail", store_number=result["store_number"]))
 
@@ -176,7 +176,7 @@ def create_app() -> Flask:
     @login_required
     def dashboard():
         role = session.get("role")
-        if role == "admin":
+        if role in ("admin", "sales_director"):
             stores = database.get_all_stores_summary()
             return render_template("dashboard.html", stores=stores)
         if role == "center_manager":
@@ -190,7 +190,7 @@ def create_app() -> Flask:
     @login_required
     def store_detail(store_number):
         role = session.get("role")
-        if role == "admin":
+        if role in ("admin", "sales_director"):
             pass  # доступ ко всем
         elif role == "center_manager":
             cid = session.get("center_id")
@@ -445,7 +445,7 @@ def create_app() -> Flask:
     @login_required
     def api_store(store_number):
         role = session.get("role")
-        if role == "admin":
+        if role in ("admin", "sales_director"):
             pass
         elif role == "center_manager":
             cid = session.get("center_id")
@@ -564,7 +564,7 @@ def create_app() -> Flask:
     @login_required
     def activity():
         role = session.get("role")
-        if role not in ("admin", "center_manager"):
+        if role not in ("admin", "center_manager", "sales_director"):
             flash("Доступ только для администратора", "danger")
             return redirect(url_for("dashboard"))
 
@@ -779,8 +779,11 @@ def create_app() -> Flask:
 
     @app.route("/centers")
     @login_required
-    @admin_required
     def centers():
+        role = session.get("role")
+        if role not in ("admin", "sales_director"):
+            flash("Доступ только для администратора", "danger")
+            return redirect(url_for("dashboard"))
         center_list = database.get_centers()
         for c in center_list:
             stores = database.get_center_stores(c["id"])
@@ -1090,7 +1093,7 @@ def create_app() -> Flask:
     def api_store_photos(store_number):
         """Список фото акционной зоны магазина."""
         role = session.get("role")
-        if role not in ("admin", "center_manager"):
+        if role not in ("admin", "center_manager", "sales_director"):
             if session.get("store_number") != store_number:
                 return jsonify({"error": "Нет доступа"}), 403
         photos = database.get_store_promo_photos(store_number)

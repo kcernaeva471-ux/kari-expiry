@@ -193,6 +193,14 @@ def setup_store_access():
            VALUES ('79003555513', '2309', 'admin')
            ON CONFLICT(store_number) DO UPDATE SET role = 'admin'""",
     )
+
+    # Директор по продажам — Андрей Епифанцев
+    db.execute(
+        """INSERT INTO store_access (store_number, access_code, role, manager_name)
+           VALUES ('79162108967', '79162108967', 'sales_director', 'Андрей Епифанцев')
+           ON CONFLICT(store_number) DO UPDATE SET role = 'sales_director',
+               manager_name = 'Андрей Епифанцев'""",
+    )
     db.commit()
 
 
